@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>
+            Tree modifiers
+        </title>
+        <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+        <script src="https://dependencies.arnaud-nicolas.fr/?need=Event"></script>
+        <script src="script/TreeBuilder.js"></script>
+        <style>
+            *{font-family: "Roboto", sans-serif;outline:none;}
+            html, body{
+                height:100%;width:100%;margin:0; padding:0;
+            }
+
+            .builder_container{width:100%;height:100%;display:flex;}
+
+            .builder_container svg{}
+
+            .builder_container .properties_editor{width:300px;flex-grow: 0;flex-shrink: 0;height:100%;background:#f0f0f0;}
+
+            svg text{pointer-events: none;}
+
+            svg .draggable rect{cursor: pointer;stroke: rgba(0, 0, 0, 1);stroke-width: 2px;}
+
+            svg g[data-type="diagnostic"]{fill:#ffce22;}
+            svg g[data-type="reflexion"]{fill:#fff;}
+            svg g[data-type="treatment"]{fill:#e0ffc0;}
+
+            svg g text{fill:#000;}
+
+            svg .draggable:hover rect{stroke-width: 2px;stroke: rgb(58, 164, 218);}
+
+            svg .draggable.selected rect{stroke: rgb(58, 164, 218);}
+
+            svg circle{fill:rgba(0, 0, 0, .10);cursor:pointer;}
+            svg.hideAnchors circle{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
+
+            svg line.link{stroke:black;stroke-width:2px;border:solid 4px #ff0000;}
+
+            .properties_editor{box-shadow:0 0 3px rgba(0, 0, 0, .3);}
+
+            .properties_editor .actions{text-align: center;}
+
+            .properties_editor .actions button, .properties_editor .properties .add_link_handler button{ display:block;padding:7px;margin:5px auto 0;background:#217ebd;border:none;color:#fff;border-radius:3px;cursor:pointer;}
+            .properties_editor .actions button:disabled, .properties_editor .properties .add_link_handler button:disabled{ background: #7faebd;color: #ececec;pointer-events: none;}
+
+            .properties_editor .properties{margin-bottom:15px;}
+
+            .properties_editor .properties .inp_container{padding:15px;border-bottom:solid 1px #ddd;}
+            .properties_editor .properties .inp_container label{display:block;}
+            .properties_editor .properties .inp_container input[type="text"]{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;}
+            .properties_editor .properties .inp_container input[type="text"]:focus{border-color:#666;}
+            .properties_editor .properties .inp_container select{width:100%;padding:5px;}
+            .properties_editor .properties .inp_container select option{padding:5px;}
+            .properties_editor .properties .inp_container select option[value="diagnostic"]{background:#ffce22;}
+            .properties_editor .properties .inp_container select option[value="reflexion"]{background:#fff;}
+            .properties_editor .properties .inp_container select option[value="treatment"]{background:#e0ffc0;}
+            .properties_editor .properties .add_link_handler{padding:15px;border-bottom:solid 1px #ddd;}
+            .properties_editor .properties .add_link_handler label{display:block;}
+            .properties_editor .properties .add_link_handler select{padding:7px;width:calc(100% - 58px);}
+            .properties_editor .properties .add_link_handler button{display:inline-block;width:58px;text-align: center;}
+        </style>
+    </head>
+    <body>
+    <div class="builder_container">
+        <svg width="100%" height="100%">
+            <defs>
+                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                    <path d="M0,0 L0,6 L9,3 z" fill="#000" />
+                </marker>
+            </defs>
+            <g id="rect1" transform="translate(400,30)" data-role="block" data-type="diagnostic">
+                <rect width="200" height="75"></rect>
+                <text x="10" y="30">Démarche diagnostic</text>
+            </g>
+        </svg>
+        <div class="properties_editor">
+            <div class="actions">
+                <button onclick="toggleAnchorVisibility();" id="toggle_anchors">Cacher les ancres</button>
+            </div>
+            <div class="properties">
+
+            </div>
+            <div class="actions">
+                <button onclick="Block.create();" disabled="disabled" id="add_block">Ajouter un élement</button>
+            </div>
+        </div>
+    </div>
+    </body>
+</html>
