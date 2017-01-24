@@ -4,22 +4,21 @@ var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor";
 var CLASS_SELECTED = "selected";
 
-var pEditor;
-var watchers = {};
+var propertiesEditor;
+var dispatchers = {};
 var links = {};
 var last_block = "";
 var svg;
 
 function Draggable(pElement)
 {
-    this._setup(pElement);
+    this._setupDraggable(pElement);
 }
 
 Class.define(Draggable, [EventDispatcher], {
-    _setup:function(pElement)
+    _setupDraggable:function(pElement)
     {
         this.removeAllEventListener();
-        this.hasBeenDragged = false;
         this.element = pElement;
         this.element.classList.add("draggable");
         this.options = this._parseOptions(this.element.getAttribute("data-draggable"));
@@ -30,13 +29,12 @@ Class.define(Draggable, [EventDispatcher], {
         this.__dragHandler = this._dragHandler.proxy(this);
         if(this.options.restraintTo)
         {
-            watchers[this.options.restraintTo[0]].addEventListener(DraggableEvent.POSITION_UPDATED, this._updateConstraint.proxy(this), false);
+            dispatchers[this.options.restraintTo[0]].addEventListener(DraggableEvent.POSITION_UPDATED, this._updateConstraint.proxy(this), false);
             this._updateConstraint();
         }
     },
     _startDragHandler:function(e)
     {
-        this.hasBeenDragged = false;
         this.relativePointer.x = e.clientX - this.getX();
         this.relativePointer.y = e.clientY - this.getY();
         if(this.centerRelativePointer)
@@ -55,12 +53,13 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _dragHandler:function(e)
     {
-        this.hasBeenDragged = true;
         var restraint = this.options.restraintTo;
         var p = {x: e.clientX - this.relativePointer.x, y: e.clientY - this.relativePointer.y};
+        p.x = Math.max(p.x, 0);
+        p.y = Math.max(p.y, 0);
         if(restraint)
         {
-            var t = watchers[restraint[0]];
+            var t = dispatchers[restraint[0]];
 
             p.x = Math.max(t.getX(), p.x);
             p.x = Math.min(t.getX() + t.getWidth(), p.x);
@@ -135,7 +134,7 @@ Class.define(Draggable, [EventDispatcher], {
     _updateConstraint:function()
     {
         var restraint = this.options.restraintTo;
-        var rPosition = watchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
+        var rPosition = dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
         this.element.setAttribute("transform", "translate("+ rPosition.x+","+ rPosition.y+")");
         this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
     },
@@ -143,8 +142,8 @@ Class.define(Draggable, [EventDispatcher], {
     {
         this.removeAllEventListener();
         this.element.parentNode.removeChild(this.element);
-        watchers[this.element.getAttribute("id")] = null;
-        delete watchers[this.element.getAttribute("id")];
+        dispatchers[this.element.getAttribute("id")] = null;
+        delete dispatchers[this.element.getAttribute("id")];
     },
     getX:function()
     {
@@ -218,23 +217,81 @@ var DraggableEvent = {
     POSITION_UPDATED: "evt_position_updated"
 };
 
+function Resizable(pElement)
+{
+
+}
+
+Class.define(Resizable, [Draggable], {
+    _setupResizable:function(pElement)
+    {
+        this.__resizeHandler = this._resizeHandler.proxy(this);
+        this.__resizedHandler = this._resizedHandler.proxy(this);
+        pElement.addEventListener("mousedown", this._downHandler.proxy(this), false);
+
+        this._setupDraggable(pElement);
+        SVGElement.create("path", {"d":"M10,0 L10,10 L0,10 Z", "transform":"translate("+(this.getWidth()-15)+", "+(this.getHeight()-15)+")", "fill":"#000", "data-role":"resize"}, this.element);
+    },
+    _downHandler:function(e)
+    {
+        var t = e.target;
+
+        if(t.getAttribute("data-role") && t.getAttribute("data-role") === "resize")
+        {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            this.relativePointer.x = e.clientX - this.getX();
+            this.relativePointer.y = e.clientY - this.getY();
+            this.startDimensions = {width:this.getWidth(), height:this.getHeight()};
+            document.addEventListener("mouseup", this.__resizedHandler, false);
+            document.addEventListener("mousemove", this.__resizeHandler, false);
+        }
+    },
+    _resizeHandler:function(e)
+    {
+        var newPosition = {
+            x: e.clientX - this.getX(),
+            y: e.clientY - this.getY()
+        };
+
+        var newDimensions = {
+            width:this.startDimensions.width + (newPosition.x - this.relativePointer.x),
+            height:this.startDimensions.height + (newPosition.y - this.relativePointer.y)
+        };
+
+        newDimensions.width = Math.max(newDimensions.width, 100);
+        newDimensions.height = Math.max(newDimensions.height, 50);
+
+        var rect = this.element.querySelector("rect");
+        rect.setAttribute("width", newDimensions.width);
+        rect.setAttribute("height", newDimensions.height);
+        var resizer = this.element.querySelector('path[data-role="resize"]');
+        resizer.setAttribute("transform", "translate("+(newDimensions.width-15)+", "+(newDimensions.height-15)+")");
+        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+    },
+    _resizedHandler:function(e)
+    {
+        document.removeEventListener("mouseup", this.__resizedHandler, false);
+        document.removeEventListener("mousemove", this.__resizeHandler, false);
+        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+    }
+});
+
 function Block(pElement)
 {
-    this._setup(pElement);
+    this._setupResizable(pElement);
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
 }
 
-Class.define(Block,[Draggable], {
+Class.define(Block,[Resizable], {
     select:function()
     {
-        if(this.hasBeenDragged)
-            return;
         document.querySelectorAll(".draggable."+CLASS_SELECTED).forEach(function(pEl){pEl.classList.remove(CLASS_SELECTED);});
         last_block = this.element.getAttribute("id");
         this.element.classList.add(CLASS_SELECTED);
-        pEditor.edit(this);
+        propertiesEditor.edit(this);
     },
     setProperty:function(pName, pValue)
     {
@@ -261,7 +318,7 @@ Class.define(Block,[Draggable], {
                 "type":"select",
                 "data":{
                     "diagnostic":"D&eacute;marche diagnostique",
-                    "reflexion": "R&eacute;flexion",
+                    "reflexion": "&Eacute;valuation",
                     "treatment": "Traitement"
                 },
                 "value":this.element.getAttribute("data-type")
@@ -274,7 +331,7 @@ Class.define(Block,[Draggable], {
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
-            bl = watchers[i];
+            bl = dispatchers[i];
             next[i] = {"label":bl.element.querySelector("text").innerHTML, "extra":this.next[i]};
             hasNext = true;
         }
@@ -300,7 +357,6 @@ Class.define(Block,[Draggable], {
     },
     addPreviousBlock:function(pId, pLine)
     {
-        console.log(this.element.getAttribute("id")+" "+pId);
         for(var i in this.previous)
         {
             if(i === pId)
@@ -338,27 +394,28 @@ Class.define(Block,[Draggable], {
 
 Block.create = function()
 {
-    var previous = watchers[last_block];
+    var dimensions = {width:200, height:75};
+    var previous = dispatchers[last_block];
 
     var index = document.querySelectorAll("g").length + 1;
     var g = SVGElement.create("g", {
-        "transform":"translate("+previous.getX()+","+(previous.getY()+previous.getHeight()+30)+")",
+        "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
         "id":GROUP_BASE_ID+index,
         "data-role":"block",
         "data-type":"diagnostic"
     });
 
-    var rect = SVGElement.create("rect", {"width":"200", "height":"75"}, g);
+    var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
     var text = SVGElement.create("text", {"x":"10", "y":"30"}, g);
     text.innerHTML = "Lorem Ipsum";
 
     svg.appendChild(g);
 
-    watchers[g.getAttribute("id")] = new Block(g);
+    dispatchers[g.getAttribute("id")] = new Block(g);
 
     Link.create(last_block, g.getAttribute("id"));
 
-    watchers[g.getAttribute("id")].select();
+    dispatchers[g.getAttribute("id")].select();
 };
 
 var SVGElement = {
@@ -401,8 +458,8 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
     var id = this.element.getAttribute("id");
     this.firstBlock = pFirstBlock;
     this.secondBlock = pSecondBlock;
-    watchers[pFirstBlock].addNextBlock(pSecondBlock, id);
-    watchers[pSecondBlock].addPreviousBlock(pFirstBlock, id);
+    dispatchers[pFirstBlock].addNextBlock(pSecondBlock, id);
+    dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, id);
     var elements = id.split("_");
     if(elements.length !== 3)
         return;
@@ -413,8 +470,8 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
     if(!this.from || ! this.to)
         return;
 
-    this.draggableFrom  = watchers[elements[1]];
-    this.draggableTo = watchers[elements[2]];
+    this.draggableFrom  = dispatchers[elements[1]];
+    this.draggableTo = dispatchers[elements[2]];
 
     this.draggableFrom.addEventListener(DraggableEvent.POSITION_UPDATED, this._updatePositionHandler.proxy(this), false);
     this.draggableTo.addEventListener(DraggableEvent.POSITION_UPDATED, this._updatePositionHandler.proxy(this), false);
@@ -432,8 +489,8 @@ Class.define(Link, [], {
     remove:function()
     {
         var id = this.element.getAttribute("id");
-        watchers[this.firstBlock].removeNextBlock(this.secondBlock);
-        watchers[this.secondBlock].removePreviousBlock(this.firstBlock);
+        dispatchers[this.firstBlock].removeNextBlock(this.secondBlock);
+        dispatchers[this.secondBlock].removePreviousBlock(this.firstBlock);
         this.draggableFrom.remove();
         this.draggableTo.remove();
         this.element.parentNode.removeChild(this.element);
@@ -459,13 +516,13 @@ Link.create = function(pFirstBlock, pSecondBlock)
         "data-draggable":"restraintTo:"+pFirstBlock+",50%,bottom",
         "data-role":"block"
     }, svg);
-    watchers[circle.getAttribute("id")] = new Draggable(circle);
+    dispatchers[circle.getAttribute("id")] = new Draggable(circle);
     circle = SVGElement.create("circle", {
         "r":"10",
         "id":ANCHOR_BASE_ID+(index+1),
         "data-draggable":"restraintTo:"+ pSecondBlock+",50%,top"
     }, svg);
-    watchers[circle.getAttribute("id")] = new Draggable(circle);
+    dispatchers[circle.getAttribute("id")] = new Draggable(circle);
     links[id] = new Link(line, pFirstBlock, pSecondBlock);
 };
 
@@ -522,7 +579,7 @@ Class.define(PropertiesEditor, [], {
                     }
                     break;
                 case "list":
-                    var ul = Element.create("ul", {}, inp_ct);
+                    var ul = Element.create("ul", {"class":"list"}, inp_ct);
                     var li, action;
                     for(k in prop.data)
                     {
@@ -531,12 +588,12 @@ Class.define(PropertiesEditor, [], {
 
                         li = Element.create("li", {}, ul);
                         Element.create("span", {"innerHTML":prop.data[k].label}, li);
-                        action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":prop.data[k].extra}, li);
+                        action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":prop.data[k].extra, "class":"remove"}, li);
                         action.addEventListener("click", function(e){
-                            var t = e.currentTarget
+                            var t = e.currentTarget;
                             var remove = t.getAttribute("data-remove");
                             links[remove].remove();
-                            pEditor.edit(pElement);
+                            propertiesEditor.edit(pElement);
                         }, false);
                     }
                     break;
@@ -546,12 +603,12 @@ Class.define(PropertiesEditor, [], {
         var ignore = [pElement.element.getAttribute("id")].concat(pElement.getLinkedBlocks());
         var has_options = false;
         var further_blocks = {};
-        for(i in watchers)
+        for(i in dispatchers)
         {
-            if(!watchers.hasOwnProperty(i)||!watchers[i].element.querySelector("text")||ignore.indexOf(i)>-1)
+            if(!dispatchers.hasOwnProperty(i)||!dispatchers[i].element.querySelector("text")||ignore.indexOf(i)>-1)
                 continue;
 
-            further_blocks[watchers[i].element.getAttribute("id")] = watchers[i].element.querySelector("text").innerHTML;
+            further_blocks[dispatchers[i].element.getAttribute("id")] = dispatchers[i].element.querySelector("text").innerHTML;
             has_options = true;
         }
 
@@ -576,7 +633,7 @@ Class.define(PropertiesEditor, [], {
                 var t = e.currentTarget;
                 var selectedValue = t.parentNode.querySelector("select").value;
                 Link.create(pElement.element.getAttribute("id"), selectedValue);
-                pEditor.edit(pElement);
+                propertiesEditor.edit(pElement);
             }, false);
         }
     }
@@ -594,18 +651,18 @@ function toggleAnchorVisibility()
     {
         svg = document.querySelector("svg");
         svg.querySelectorAll('*[data-role="block"]').forEach(function(pElement){
-            watchers[pElement.getAttribute("id")] = new Block(pElement);
+            dispatchers[pElement.getAttribute("id")] = new Block(pElement);
             last_block = pElement.getAttribute("id");
         });
         svg.querySelectorAll('*[data-role="anchor"]').forEach(function(pElement){
-            watchers[pElement.getAttribute("id")] = new Draggable(pElement);
+            dispatchers[pElement.getAttribute("id")] = new Draggable(pElement);
         });
 
         svg.querySelectorAll('line.link').forEach(function(pElement){
             new Link(pElement);
         });
 
-        pEditor = new PropertiesEditor(document.querySelector(".properties_editor"));
+        propertiesEditor = new PropertiesEditor(document.querySelector(".properties_editor"));
     }
 
     NodeList.prototype.forEach = Array.prototype.forEach;
