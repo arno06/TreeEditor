@@ -15,6 +15,21 @@ var type_list = {
     "treatment": "Traitement"
 };
 
+var context = {
+    getScroll:function()
+    {
+        var scroll = {x:0, y:0};
+        var p = svg;
+        while(p)
+        {
+            scroll.x += p.scrollLeft||0;
+            scroll.y += p.scrollTop||0;
+            p = p.parentNode;
+        }
+        return scroll;
+    }
+};
+
 function Draggable(pElement)
 {
     this._setupDraggable(pElement);
@@ -62,7 +77,8 @@ Class.define(Draggable, [EventDispatcher], {
     _dragHandler:function(e)
     {
         var restraint = this.options.restraintTo;
-        var p = {x: e.clientX - this.relativePointer.x, y: e.clientY - this.relativePointer.y};
+        var s = context.getScroll();
+        var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
         p.x = Math.max(p.x, 0);
         p.y = Math.max(p.y, 0);
         if(restraint)
@@ -90,11 +106,11 @@ Class.define(Draggable, [EventDispatcher], {
             {
                 if(restraint[2]== "top")
                 {
-                    p.y = t.getY();
+                    p.y = s.y + t.getY();
                 }
                 else
                 {
-                    p.y = t.getY()+t.getHeight();
+                    p.y = s.y + t.getY()+t.getHeight();
                 }
                 newRestraint.y = restraint[2];
             }
@@ -184,20 +200,9 @@ Class.define(Draggable, [EventDispatcher], {
         var t = this.element.getBoundingClientRect();
         return Number(t.height)||0;
     },
-    getScroll:function()
-    {
-        var p = this.element;
-        var scroll = {x:0, y:0};
-        while(p)
-        {
-            scroll.x += Number(p.scrollLeft||0);
-            scroll.y += Number(p.scrollTop||0);
-            p = p.parentNode;
-        }
-        return scroll;
-    },
     getRelativePosition:function(pLeft, pTop)
     {
+        var scroll = context.getScroll();
         var left = 0;
         var top = 0;
 
@@ -226,8 +231,8 @@ Class.define(Draggable, [EventDispatcher], {
         }
 
         return {
-            x:this.getX()+(left * this.getWidth()),
-            y:this.getY()+(top * this.getHeight())
+            x: scroll.x + this.getX()+(left * this.getWidth()),
+            y: scroll.y + this.getY()+(top * this.getHeight())
         };
     }
 });
@@ -414,12 +419,13 @@ Class.define(Block,[Resizable], {
 
 Block.create = function()
 {
+    var scroll = context.getScroll();
     var dimensions = {width:200, height:75};
     var previous = dispatchers[last_block];
 
     var index = document.querySelectorAll("g").length + 1;
     var g = SVGElement.create("g", {
-        "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
+        "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
         "id":GROUP_BASE_ID+index,
         "data-role":"block",
         "data-type":"diagnostic"
@@ -500,10 +506,11 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
 Class.define(Link, [], {
     _updatePositionHandler:function(e)
     {
-        this.element.setAttribute("x1", this.draggableFrom.getX()+(this.draggableFrom.getWidth()>>1));
-        this.element.setAttribute("y1",this.draggableFrom.getY()+(this.draggableFrom.getHeight()>>1));
-        this.element.setAttribute("x2", this.draggableTo.getX()+(this.draggableTo.getWidth()>>1));
-        this.element.setAttribute("y2", this.draggableTo.getY()+(this.draggableFrom.getHeight()>>1));
+        var scroll = context.getScroll();
+        this.element.setAttribute("x1", scroll.x + this.draggableFrom.getX()+(this.draggableFrom.getWidth()>>1));
+        this.element.setAttribute("y1", scroll.y + this.draggableFrom.getY()+(this.draggableFrom.getHeight()>>1));
+        this.element.setAttribute("x2", scroll.x + this.draggableTo.getX()+(this.draggableTo.getWidth()>>1));
+        this.element.setAttribute("y2", scroll.y + this.draggableTo.getY()+(this.draggableFrom.getHeight()>>1));
     },
     remove:function()
     {
