@@ -9,6 +9,11 @@ var dispatchers = {};
 var links = {};
 var last_block = "";
 var svg;
+var type_list = {
+    "diagnostic":"D&eacute;marche diagnostique",
+    "reflexion": "&Eacute;valuation",
+    "treatment": "Traitement"
+};
 
 function Draggable(pElement)
 {
@@ -29,12 +34,15 @@ Class.define(Draggable, [EventDispatcher], {
         this.__dragHandler = this._dragHandler.proxy(this);
         if(this.options.restraintTo)
         {
-            dispatchers[this.options.restraintTo[0]].addEventListener(DraggableEvent.POSITION_UPDATED, this._updateConstraint.proxy(this), false);
+            dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updateConstraint.proxy(this), false);
             this._updateConstraint();
         }
     },
     _startDragHandler:function(e)
     {
+        if(svg.classList.contains("frozen"))
+            return;
+
         this.relativePointer.x = e.clientX - this.getX();
         this.relativePointer.y = e.clientY - this.getY();
         if(this.centerRelativePointer)
@@ -49,7 +57,7 @@ Class.define(Draggable, [EventDispatcher], {
     {
         document.removeEventListener("mouseup", this.__dropHandler, false);
         document.removeEventListener("mousemove", this.__dragHandler, false);
-        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+        this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     },
     _dragHandler:function(e)
     {
@@ -95,8 +103,7 @@ Class.define(Draggable, [EventDispatcher], {
             this.options.restraintTo[2] = newRestraint.y;
             this._updateOptions();
         }
-        this.element.setAttribute("transform", "translate("+ p.x+","+ p.y+")");
-        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+        this.setPosition(p.x, p.y);
     },
     _parseOptions:function(pString)
     {
@@ -135,8 +142,7 @@ Class.define(Draggable, [EventDispatcher], {
     {
         var restraint = this.options.restraintTo;
         var rPosition = dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
-        this.element.setAttribute("transform", "translate("+ rPosition.x+","+ rPosition.y+")");
-        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+        this.setPosition(rPosition.x, rPosition.y);
     },
     remove:function()
     {
@@ -144,6 +150,19 @@ Class.define(Draggable, [EventDispatcher], {
         this.element.parentNode.removeChild(this.element);
         dispatchers[this.element.getAttribute("id")] = null;
         delete dispatchers[this.element.getAttribute("id")];
+    },
+    setPosition:function(pX, pY)
+    {
+        this.element.setAttribute("transform", "translate("+pX+","+pY+")");
+        this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
+    },
+    setX:function(pX)
+    {
+        this.setPosition(pX, this.getY());
+    },
+    setY:function(pY)
+    {
+        this.setPosition(this.getX(), pY);
     },
     getX:function()
     {
@@ -213,8 +232,8 @@ Class.define(Draggable, [EventDispatcher], {
     }
 });
 
-var DraggableEvent = {
-    POSITION_UPDATED: "evt_position_updated"
+var InteractiveEvent = {
+    BOUNDS_CHANGED: "evt_bounds_changed"
 };
 
 function Resizable(pElement)
@@ -234,6 +253,9 @@ Class.define(Resizable, [Draggable], {
     },
     _downHandler:function(e)
     {
+        if(svg.classList.contains("frozen"))
+            return;
+
         var t = e.target;
 
         if(t.getAttribute("data-role") && t.getAttribute("data-role") === "resize")
@@ -262,18 +284,22 @@ Class.define(Resizable, [Draggable], {
         newDimensions.width = Math.max(newDimensions.width, 100);
         newDimensions.height = Math.max(newDimensions.height, 50);
 
-        var rect = this.element.querySelector("rect");
-        rect.setAttribute("width", newDimensions.width);
-        rect.setAttribute("height", newDimensions.height);
-        var resizer = this.element.querySelector('path[data-role="resize"]');
-        resizer.setAttribute("transform", "translate("+(newDimensions.width-15)+", "+(newDimensions.height-15)+")");
-        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+        this.setDimensions(newDimensions.width, newDimensions.height);
     },
     _resizedHandler:function(e)
     {
         document.removeEventListener("mouseup", this.__resizedHandler, false);
         document.removeEventListener("mousemove", this.__resizeHandler, false);
-        this.dispatchEvent(new Event(DraggableEvent.POSITION_UPDATED));
+        this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
+    },
+    setDimensions:function(pWidth, pHeight)
+    {
+        var rect = this.element.querySelector("rect");
+        rect.setAttribute("width", pWidth);
+        rect.setAttribute("height", pHeight);
+        var resizer = this.element.querySelector('path[data-role="resize"]');
+        resizer.setAttribute("transform", "translate("+(pWidth-15)+", "+(pHeight-15)+")");
+        this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     }
 });
 
@@ -316,11 +342,7 @@ Class.define(Block,[Resizable], {
             "type": {
                 "label":"Type de block",
                 "type":"select",
-                "data":{
-                    "diagnostic":"D&eacute;marche diagnostique",
-                    "reflexion": "&Eacute;valuation",
-                    "treatment": "Traitement"
-                },
+                "data":type_list,
                 "value":this.element.getAttribute("data-type")
             }
         };
@@ -348,12 +370,10 @@ Class.define(Block,[Resizable], {
     removeNextBlock:function(pId){
         this.next[pId] = null;
         delete this.next[pId];
-        console.log(this.next);
     },
     removePreviousBlock:function(pId){
         this.previous[pId] = null;
         delete this.previous[pId];
-        console.log(this.previous);
     },
     addPreviousBlock:function(pId, pLine)
     {
@@ -406,8 +426,7 @@ Block.create = function()
     });
 
     var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-    var text = SVGElement.create("text", {"x":"10", "y":"30"}, g);
-    text.innerHTML = "Lorem Ipsum";
+    var text = SVGElement.create("text", {"x":"10", "y":"30", "innerHTML":type_list.diagnostic}, g);
 
     svg.appendChild(g);
 
@@ -473,8 +492,8 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
     this.draggableFrom  = dispatchers[elements[1]];
     this.draggableTo = dispatchers[elements[2]];
 
-    this.draggableFrom.addEventListener(DraggableEvent.POSITION_UPDATED, this._updatePositionHandler.proxy(this), false);
-    this.draggableTo.addEventListener(DraggableEvent.POSITION_UPDATED, this._updatePositionHandler.proxy(this), false);
+    this.draggableFrom.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
+    this.draggableTo.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
     this._updatePositionHandler();
 }
 
@@ -639,10 +658,10 @@ Class.define(PropertiesEditor, [], {
     }
 });
 
-function toggleAnchorVisibility()
+function toggleFrozenStatus()
 {
-    svg.classList.toggle("hideAnchors");
-    document.getElementById("toggle_anchors").innerHTML = (svg.classList.contains("hideAnchors")?"Afficher":"Cacher")+" les ancres";
+    svg.classList.toggle("frozen");
+    document.getElementById("toggle_ui").innerHTML = (svg.classList.contains("frozen")?"D&eacute;geler":"Geler")+" l'interface";
 }
 
 (function(){

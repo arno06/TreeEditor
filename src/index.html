@@ -13,12 +13,12 @@
                 height:100%;width:100%;margin:0; padding:0;
             }
 
-            .builder_container{width:100%;height:100%;display:flex;}
+            .builder_container{width:100%;height:100%;}
 
-            .builder_container svg{}
+            .builder_container svg{height:1600px;position:relative;}
             .builder_container svg *{user-select:none;}
 
-            .builder_container .properties_editor{width:300px;flex-grow: 0;flex-shrink: 0;height:100%;background:#f0f0f0;}
+            .builder_container .properties_editor{width:300px;height:100%;background:#f0f0f0;position:fixed;top:0;right:0;}
 
             svg text{pointer-events: none;}
 
@@ -37,7 +37,7 @@
             svg .draggable.selected rect{stroke: rgb(58, 164, 218);}
 
             svg circle{fill:rgba(0, 0, 0, .10);cursor:pointer;}
-            svg.hideAnchors circle, svg.hideAnchors path{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
+            svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 
             svg line.link{stroke:black;stroke-width:2px;border:solid 4px #ff0000;}
 
@@ -80,18 +80,18 @@
             </defs>
             <g id="rect1" transform="translate(400,30)" data-role="block" data-type="diagnostic">
                 <rect width="200" height="75"></rect>
-                <text x="10" y="30">Démarche diagnostic</text>
+                <text x="10" y="30">D&eacute;marche diagnostic</text>
             </g>
         </svg>
         <div class="properties_editor">
             <div class="actions">
-                <button onclick="toggleAnchorVisibility();" id="toggle_anchors">Cacher les ancres</button>
+                <button onclick="toggleFrozenStatus();" id="toggle_ui">Geler l'interface</button>
             </div>
             <div class="properties">
 
             </div>
             <div class="actions">
-                <button onclick="Block.create();" disabled="disabled" id="add_block">Ajouter un élement</button>
+                <button onclick="Block.create();" disabled="disabled" id="add_block">Ajouter un &eacute;l&eacute;ment</button>
             </div>
         </div>
     </div>
