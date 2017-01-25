@@ -443,39 +443,6 @@ Block.create = function()
     dispatchers[g.getAttribute("id")].select();
 };
 
-var SVGElement = {
-    create:function(pName, pAttributes, pParentNode)
-    {
-        return Element.create(pName, pAttributes, pParentNode, NS_SVG);
-    }
-};
-
-var Element = {
-    create:function(pName, pAttributes, pParentNode, pNs)
-    {
-        var element = pNs?document.createElementNS(pNs, pName):document.createElement(pName);
-
-        for(var i in pAttributes)
-        {
-            if(!pAttributes.hasOwnProperty(i))
-                continue;
-            switch(i)
-            {
-                case "innerHTML":
-                    element.innerHTML = pAttributes[i];
-                    break;
-                default:
-                    element.setAttribute(i, pAttributes[i]);
-                    break;
-            }
-        }
-
-        if(pParentNode)
-            pParentNode.appendChild(element);
-
-        return element;
-    }
-};
 
 function Link(pElement, pFirstBlock ,pSecondBlock)
 {
@@ -550,6 +517,40 @@ Link.create = function(pFirstBlock, pSecondBlock)
     }, svg);
     dispatchers[circle.getAttribute("id")] = new Draggable(circle);
     links[id] = new Link(line, pFirstBlock, pSecondBlock);
+};
+
+var SVGElement = {
+    create:function(pName, pAttributes, pParentNode)
+    {
+        return Element.create(pName, pAttributes, pParentNode, NS_SVG);
+    }
+};
+
+var Element = {
+    create:function(pName, pAttributes, pParentNode, pNs)
+    {
+        var element = pNs?document.createElementNS(pNs, pName):document.createElement(pName);
+
+        for(var i in pAttributes)
+        {
+            if(!pAttributes.hasOwnProperty(i))
+                continue;
+            switch(i)
+            {
+                case "innerHTML":
+                    element.innerHTML = pAttributes[i];
+                    break;
+                default:
+                    element.setAttribute(i, pAttributes[i]);
+                    break;
+            }
+        }
+
+        if(pParentNode)
+            pParentNode.appendChild(element);
+
+        return element;
+    }
 };
 
 function PropertiesEditor(pElement)
