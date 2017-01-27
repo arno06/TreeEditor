@@ -1,7 +1,7 @@
 var NS_SVG = "http://www.w3.org/2000/svg";
-var GROUP_BASE_ID = "group_";
+var GROUP_BASE_ID = "group-";
 var LINK_BASE_ID = "link_";
-var ANCHOR_BASE_ID = "anchor";
+var ANCHOR_BASE_ID = "anchor-";
 var CLASS_SELECTED = "selected";
 
 var propertiesEditor;
@@ -15,7 +15,7 @@ var type_list = {
     "treatment": "Traitement"
 };
 
-var context = {
+var Context = {
     getScroll:function()
     {
         var scroll = {x:0, y:0};
@@ -50,6 +50,7 @@ Class.define(Draggable, [EventDispatcher], {
         if(this.options.restraintTo)
         {
             dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updateConstraint.proxy(this), false);
+            dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.REMOVED, this.remove.proxy(this), false);
             this._updateConstraint();
         }
     },
@@ -77,7 +78,7 @@ Class.define(Draggable, [EventDispatcher], {
     _dragHandler:function(e)
     {
         var restraint = this.options.restraintTo;
-        var s = context.getScroll();
+        var s = Context.getScroll();
         var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
         p.x = Math.max(p.x, 0);
         p.y = Math.max(p.y, 0);
@@ -162,10 +163,14 @@ Class.define(Draggable, [EventDispatcher], {
     },
     remove:function()
     {
-        this.removeAllEventListener();
+        var id = this.element.getAttribute("id");
+        if(!this.element.parentNode)
+            return;
         this.element.parentNode.removeChild(this.element);
-        dispatchers[this.element.getAttribute("id")] = null;
-        delete dispatchers[this.element.getAttribute("id")];
+        dispatchers[id].dispatchEvent(new Event(InteractiveEvent.REMOVED));
+        this.removeAllEventListener();
+        dispatchers[id] = null;
+        delete dispatchers[id];
     },
     setPosition:function(pX, pY)
     {
@@ -202,7 +207,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     getRelativePosition:function(pLeft, pTop)
     {
-        var scroll = context.getScroll();
+        var scroll = Context.getScroll();
         var left = 0;
         var top = 0;
 
@@ -238,7 +243,8 @@ Class.define(Draggable, [EventDispatcher], {
 });
 
 var InteractiveEvent = {
-    BOUNDS_CHANGED: "evt_bounds_changed"
+    BOUNDS_CHANGED: "evt_bounds_changed",
+    REMOVED: "evt_removed"
 };
 
 function Resizable(pElement)
@@ -372,13 +378,15 @@ Class.define(Block,[Resizable], {
         }
         return properties;
     },
-    removeNextBlock:function(pId){
-        this.next[pId] = null;
-        delete this.next[pId];
+    nextBlockRemovedHandler:function(e){
+        var id = e.currentTarget.element.getAttribute("id");
+        this.next[id] = null;
+        delete this.next[id];
     },
-    removePreviousBlock:function(pId){
-        this.previous[pId] = null;
-        delete this.previous[pId];
+    previousBlockRemovedHandler:function(e){
+        var id = e.currentTarget.element.getAttribute("id");
+        this.previous[id] = null;
+        delete this.previous[id];
     },
     addPreviousBlock:function(pId, pLine)
     {
@@ -388,6 +396,7 @@ Class.define(Block,[Resizable], {
                 return;
         }
         this.previous[pId] = pLine;
+        dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.previousBlockRemovedHandler.proxy(this), false);
     },
     addNextBlock:function(pId, pLine)
     {
@@ -397,6 +406,7 @@ Class.define(Block,[Resizable], {
                 return;
         }
         this.next[pId] = pLine;
+        dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.nextBlockRemovedHandler.proxy(this), false);
     },
     getLinkedBlocks:function()
     {
@@ -419,11 +429,12 @@ Class.define(Block,[Resizable], {
 
 Block.create = function()
 {
-    var scroll = context.getScroll();
+    var scroll = Context.getScroll();
     var dimensions = {width:200, height:75};
     var previous = dispatchers[last_block];
 
-    var index = document.querySelectorAll("g").length + 1;
+    var selector = 'g[data-role="block"]:last-of-type';
+    var index = (document.querySelector(selector)?Number(document.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
     var g = SVGElement.create("g", {
         "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
         "id":GROUP_BASE_ID+index,
@@ -466,35 +477,50 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
     this.draggableTo = dispatchers[elements[2]];
 
     this.draggableFrom.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
+    this.draggableFrom.addEventListener(InteractiveEvent.REMOVED, this.draggableFromRemoved.proxy(this), false);
     this.draggableTo.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
+    this.draggableTo.addEventListener(InteractiveEvent.REMOVED, this.draggableToRemoved.proxy(this), false);
     this._updatePositionHandler();
 }
 
 Class.define(Link, [], {
     _updatePositionHandler:function(e)
     {
-        var scroll = context.getScroll();
+        var scroll = Context.getScroll();
         this.element.setAttribute("x1", scroll.x + this.draggableFrom.getX()+(this.draggableFrom.getWidth()>>1));
         this.element.setAttribute("y1", scroll.y + this.draggableFrom.getY()+(this.draggableFrom.getHeight()>>1));
         this.element.setAttribute("x2", scroll.x + this.draggableTo.getX()+(this.draggableTo.getWidth()>>1));
         this.element.setAttribute("y2", scroll.y + this.draggableTo.getY()+(this.draggableFrom.getHeight()>>1));
     },
-    remove:function()
+    remove:function(e)
     {
         var id = this.element.getAttribute("id");
-        dispatchers[this.firstBlock].removeNextBlock(this.secondBlock);
-        dispatchers[this.secondBlock].removePreviousBlock(this.firstBlock);
-        this.draggableFrom.remove();
-        this.draggableTo.remove();
+        if(!this.element.parentNode)
+            return;
         this.element.parentNode.removeChild(this.element);
+        if(this.draggableFrom)
+            this.draggableFrom.remove();
+        if(this.draggableTo)
+            this.draggableTo.remove();
         links[id] = null;
         delete links[id];
+    },
+    draggableFromRemoved:function(e)
+    {
+        this.draggableFrom = null;
+        this.remove(e);
+    },
+    draggableToRemoved:function(e)
+    {
+        this.draggableTo = null;
+        this.remove(e);
     }
 });
 
 Link.create = function(pFirstBlock, pSecondBlock)
 {
-    var index = document.querySelectorAll("circle").length + 1;
+
+    var index = (document.querySelector("circle:last-of-type")?Number(document.querySelector("circle:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
 
     var id = LINK_BASE_ID+ANCHOR_BASE_ID+index+"_"+ANCHOR_BASE_ID+(index+1);
     var line = SVGElement.create("line",{
@@ -561,7 +587,6 @@ function PropertiesEditor(pElement)
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
-        document.getElementById("add_block").removeAttribute("disabled");
         var editable_props = pElement.getEditableProperties();
 
         var container = this.element.querySelector(".properties");
@@ -663,6 +688,21 @@ Class.define(PropertiesEditor, [], {
                 propertiesEditor.edit(pElement);
             }, false);
         }
+
+        inp_ct = Element.create("div", {"class":"actions"}, container);
+        input = Element.create("button", {"innerHTML":"Ajouter un &eacute;l&eacute;ment"}, inp_ct);
+        input.addEventListener("click", Block.create, false);
+        input = Element.create("button", {"innerHTML":"Supprimer le block", "class":"delete"}, inp_ct);
+        input.addEventListener("click", function(e){
+            pElement.remove();
+            propertiesEditor.deselect();
+        }, false);
+
+    },
+    deselect:function()
+    {
+        var container = this.element.querySelector(".properties");
+        container.innerHTML = "";
     }
 });
 
