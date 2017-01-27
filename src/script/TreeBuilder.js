@@ -82,6 +82,8 @@ Class.define(Draggable, [EventDispatcher], {
         var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
         p.x = Math.max(p.x, 0);
         p.y = Math.max(p.y, 0);
+        p.x = Math.min(p.x, svg.getBoundingClientRect().width - this.getWidth());
+        p.y = Math.min(p.y, svg.getBoundingClientRect().height- this.getHeight());
         if(restraint)
         {
             var t = dispatchers[restraint[0]];
@@ -713,7 +715,8 @@ Class.define(PropertiesEditor, [], {
 function toggleFrozenStatus()
 {
     svg.classList.toggle("frozen");
-    document.getElementById("toggle_ui").innerHTML = (svg.classList.contains("frozen")?"D&eacute;geler":"Geler")+" l'interface";
+    document.querySelector("#toggle_ui .label").innerHTML = (svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
+    document.querySelector("#toggle_ui .material-icons").innerHTML = (svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
 }
 
 (function(){
