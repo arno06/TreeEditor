@@ -690,9 +690,13 @@ Class.define(PropertiesEditor, [], {
         }
 
         inp_ct = Element.create("div", {"class":"actions"}, container);
-        input = Element.create("button", {"innerHTML":"Ajouter un &eacute;l&eacute;ment"}, inp_ct);
+        input = Element.create("button", {}, inp_ct);
+        Element.create("span", {"class":"material-icons", "innerHTML":"&#xE145;"}, input);
+        Element.create("span", {"innerHTML":"Ajouter un block"}, input);
         input.addEventListener("click", Block.create, false);
-        input = Element.create("button", {"innerHTML":"Supprimer le block", "class":"delete"}, inp_ct);
+        input = Element.create("button", {"class":"delete"}, inp_ct);
+        Element.create("span", {"class":"material-icons", "innerHTML":"&#xE872;"}, input);
+        Element.create("span", {"innerHTML":"Supprimer le block"}, input);
         input.addEventListener("click", function(e){
             pElement.remove();
             propertiesEditor.deselect();
