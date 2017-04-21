@@ -390,6 +390,21 @@ Class.define(Block,[Resizable], {
         this.previous[id] = null;
         delete this.previous[id];
     },
+    removeLink:function(pLink)
+    {
+        for(var i in this.next)
+        {
+            if(!this.next.hasOwnProperty(i))
+                continue;
+            if(this.next[i] === pLink)
+            {
+                console.log("mustRemove... "+pLink);
+                this.next[i] = null;
+                delete this.next[i];
+                links[pLink].remove();
+            }
+        }
+    },
     addPreviousBlock:function(pId, pLine)
     {
         for(var i in this.previous)
@@ -670,8 +685,7 @@ Class.define(PropertiesEditor, [], {
                         action.addEventListener("click", function(e){
                             var t = e.currentTarget;
                             var remove = t.getAttribute("data-remove");
-                            console.log(remove);
-                            links[remove].remove();
+                            pElement.removeLink(remove);
                             propertiesEditor.edit(pElement);
                         }, false);
                     }
