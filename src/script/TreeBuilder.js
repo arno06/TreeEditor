@@ -2,6 +2,7 @@ var NS_SVG = "http://www.w3.org/2000/svg";
 var GROUP_BASE_ID = "group-";
 var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
+var SEGMENT_BASE_ID = "segment_";
 var CLASS_SELECTED = "selected";
 
 var propertiesEditor;
@@ -179,6 +180,14 @@ Class.define(Draggable, [EventDispatcher], {
         this.element.setAttribute("transform", "translate("+pX+","+pY+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     },
+    getStringPosition:function()
+    {
+        if(this.options.restraintTo)
+        {
+            return "restraintTo:"+this.options.restraintTo.join(",");
+        }
+        return this.getX()+","+this.getY();
+    },
     setX:function(pX)
     {
         this.setPosition(pX, this.getY());
@@ -246,7 +255,8 @@ Class.define(Draggable, [EventDispatcher], {
 
 var InteractiveEvent = {
     BOUNDS_CHANGED: "evt_bounds_changed",
-    REMOVED: "evt_removed"
+    REMOVED: "evt_removed",
+    SPLIT: "evt_split"
 };
 
 function Resizable(pElement)
@@ -398,7 +408,6 @@ Class.define(Block,[Resizable], {
                 continue;
             if(this.next[i] === pLink)
             {
-                console.log("mustRemove... "+pLink);
                 this.next[i] = null;
                 delete this.next[i];
                 links[pLink].remove();
@@ -471,64 +480,101 @@ Block.create = function()
     dispatchers[g.getAttribute("id")].select();
 };
 
-function Anchor(pId, pRestraint)
+function Anchor(pId, pPosition)
 {
     var opt = {
         "r":"10",
         "id":pId,
         "data-role":"block"
     };
-    if(pRestraint)
+    if(pPosition)
     {
-        opt['data-draggable'] = "restraintTo:"+pRestraint;
+        if(pPosition.indexOf("restraintTo:")===0)
+            opt['data-draggable'] = pPosition;
     }
+    this.id = pId;
     this.element = SVGElement.create("circle", opt, svg);
     this._setupDraggable(this.element);
+    if(pPosition && pPosition.indexOf("restraintTo:")!==0)
+    {
+        var pos = pPosition.split(",");
+        this.setPosition(pos[0], pos[1]);
+    }
 }
 
 Class.define(Anchor, [Draggable],  {
-
+    share:function()
+    {
+        this.element.setAttribute("data-shared", "true");
+    },
+    unShare:function()
+    {
+        this.element.removeAttribute("data-shared");
+    },
+    isShared:function()
+    {
+        return this.element.getAttribute("data-shared") && this.element.getAttribute("data-shared") === "true";
+    }
 });
 
-function Segment(pBeforeRestraint, pAfterRestraint)
+function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 {
     this.removeAllEventListener();
+
     var index = (document.querySelector("circle:last-of-type")?Number(document.querySelector("circle:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
 
-    var circleId = ANCHOR_BASE_ID+index;
-    var circleId2 = ANCHOR_BASE_ID+(index+1);
+    this.idAnchor1 = pIdAnchor1||ANCHOR_BASE_ID+index;
+    this.idAnchor2 = pIdAnchor2||ANCHOR_BASE_ID+(index+1);
 
-    var id = LINK_BASE_ID+circleId+"_"+circleId2;
+    if(!pIdAnchor1)
+        dispatchers[this.idAnchor1] = new Anchor(this.idAnchor1, pPositionAnchor1);
+    else
+        dispatchers[this.idAnchor1].share();
+    if(!pIdAnchor2)
+        dispatchers[this.idAnchor2] = new Anchor(this.idAnchor2, pPositionAnchor2);
+    else
+        dispatchers[this.idAnchor2].share();
+
+    this.id = SEGMENT_BASE_ID+this.idAnchor1+"_"+this.idAnchor2;
     this.element = SVGElement.create("line",{
-        "id":id,
-        "class":"link",
-        "marker-end":"url(#arrow)"
-    }, svg);
+        "id":this.id,
+        "class":"link"
+    }, svg, svg.querySelector("circle.draggable"));
 
-    pBeforeRestraint = pBeforeRestraint?pBeforeRestraint+",50%,bottom":null;
-    pAfterRestraint = pAfterRestraint?pAfterRestraint+",50%,top":null;
+    if(pPositionAnchor2&&pPositionAnchor2.indexOf("restraintTo:")===0)
+    {
+        this.element.setAttribute("marker-end", "url(#arrow)");
+    }
 
-    dispatchers[circleId] = new Anchor(circleId, pBeforeRestraint);
-    dispatchers[circleId2] = new Anchor(circleId2, pAfterRestraint);
+    this.element.addEventListener("dblclick", this._doubleClickHandler.proxy(this), false);
 
-    this.draggableFrom  = dispatchers[circleId];
-    this.draggableTo = dispatchers[circleId2];
+    this.anchor1  = dispatchers[this.idAnchor1];
+    this.anchor2 = dispatchers[this.idAnchor2];
 
-    this.draggableFrom.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
-    this.draggableFrom.addEventListener(InteractiveEvent.REMOVED, this.draggableFromRemoved.proxy(this), false);
-    this.draggableTo.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
-    this.draggableTo.addEventListener(InteractiveEvent.REMOVED, this.draggableToRemoved.proxy(this), false);
+    this.__updatePositionHandler = this._updatePositionHandler.proxy(this);
+    this._anchor1RemovedHandler = this.anchor1Removed.proxy(this);
+    this._anchor2RemovedHandler = this.anchor2Removed.proxy(this);
+
+    this.anchor1.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this.__updatePositionHandler, false);
+    this.anchor1.addEventListener(InteractiveEvent.REMOVED, this._anchor1RemovedHandler, false);
+    this.anchor2.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this.__updatePositionHandler, false);
+    this.anchor2.addEventListener(InteractiveEvent.REMOVED, this._anchor2RemovedHandler, false);
     this._updatePositionHandler();
 }
 
 Class.define(Segment, [EventDispatcher], {
+    _doubleClickHandler:function(e)
+    {
+        this.splitInfo = e;
+        this.dispatchEvent(new Event(InteractiveEvent.SPLIT));
+    },
     _updatePositionHandler:function(e)
     {
         var scroll = Context.getScroll();
-        this.element.setAttribute("x1", scroll.x + this.draggableFrom.getX()+(this.draggableFrom.getWidth()>>1));
-        this.element.setAttribute("y1", scroll.y + this.draggableFrom.getY()+(this.draggableFrom.getHeight()>>1));
-        this.element.setAttribute("x2", scroll.x + this.draggableTo.getX()+(this.draggableTo.getWidth()>>1));
-        this.element.setAttribute("y2", scroll.y + this.draggableTo.getY()+(this.draggableFrom.getHeight()>>1));
+        this.element.setAttribute("x1", scroll.x + this.anchor1.getX()+(this.anchor1.getWidth()>>1));
+        this.element.setAttribute("y1", scroll.y + this.anchor1.getY()+(this.anchor1.getHeight()>>1));
+        this.element.setAttribute("x2", scroll.x + this.anchor2.getX()+(this.anchor2.getWidth()>>1));
+        this.element.setAttribute("y2", scroll.y + this.anchor2.getY()+(this.anchor1.getHeight()>>1));
     },
     remove:function(e)
     {
@@ -536,21 +582,42 @@ Class.define(Segment, [EventDispatcher], {
         if(!this.element.parentNode)
             return;
         this.element.parentNode.removeChild(this.element);
-        if(this.draggableFrom)
-            this.draggableFrom.remove();
-        if(this.draggableTo)
-            this.draggableTo.remove();
+        if(this.anchor1)
+        {
+            this.anchor1.removeEventListener(InteractiveEvent.BOUNDS_CHANGED, this.__updatePositionHandler, false);
+            this.anchor1.removeEventListener(InteractiveEvent.REMOVED, this._anchor1RemovedHandler, false);
+            if(!this.anchor1.isShared())
+                this.anchor1.remove();
+            else
+                this.anchor1.unShare();
+        }
+
+        if(this.anchor2)
+        {
+            this.anchor2.removeEventListener(InteractiveEvent.BOUNDS_CHANGED, this.__updatePositionHandler, false);
+            this.anchor2.removeEventListener(InteractiveEvent.REMOVED, this._anchor2RemovedHandler, false);
+            if(!this.anchor2.isShared())
+                this.anchor2.remove();
+            else
+                this.anchor2.unShare();
+        }
         this.dispatchEvent(new Event(InteractiveEvent.REMOVED));
     },
-    draggableFromRemoved:function(e)
+    anchor1Removed:function(e)
     {
-        this.draggableFrom = null;
+        this.anchor1 = null;
         this.remove(e);
     },
-    draggableToRemoved:function(e)
+    anchor2Removed:function(e)
     {
-        this.draggableTo = null;
+        this.anchor2 = null;
         this.remove(e);
+    },
+    getAnchorsPositions:function()
+    {
+        var anchor1 = this.anchor1.getStringPosition();
+        var anchor2 = this.anchor2.getStringPosition();
+        return [anchor1, anchor2];
     }
 });
 
@@ -560,10 +627,11 @@ function Link(pFirstBlock ,pSecondBlock)
     links[this.id] = this;
     dispatchers[pFirstBlock].addNextBlock(pSecondBlock, this.id);
     dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, this.id);
-    var s = new Segment(pFirstBlock, pSecondBlock);
+    this.firstBlock = pFirstBlock;
+    this.secondBlock = pSecondBlock;
     this._removeHandler = this.remove.proxy(this);
-    s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
-    this.segments = [s];
+    this.segments = [];
+    this.addSegment(null, null, "restraintTo:"+this.firstBlock+",50%,bottom", "restraintTo:"+this.secondBlock+",50%,top");
 }
 
 Class.define(Link, [], {
@@ -578,6 +646,52 @@ Class.define(Link, [], {
         }
         links[this.id] = null;
         delete links[this.id];
+    },
+    splitSegment:function(e)
+    {
+        var s = e.currentTarget;
+
+        var idAnchor1 = null;
+        var idAnchor2 = null;
+        var positionAnchor1 = null;
+        var positionAnchor2 = null;
+
+        var anchorsPositions = s.getAnchorsPositions();
+
+        if(s.anchor1.isShared())
+            idAnchor1 = s.anchor1.id;
+        else
+            positionAnchor1 = anchorsPositions[0];
+
+        if(s.anchor2.isShared())
+            idAnchor2 = s.anchor2.id;
+        else
+            positionAnchor2 = anchorsPositions[1];
+
+        var splitPosition = s.splitInfo.clientX+","+ s.splitInfo.clientY;
+
+        s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
+        var segments = [];
+        for(var i = 0, max = this.segments.length; i<max;i++)
+        {
+            if(this.segments[i].id !== s.id)
+            {
+                segments.push(this.segments[i]);
+            }
+        }
+        this.segments = segments;
+        s.remove();
+
+        var newSegment = this.addSegment(idAnchor1, null, positionAnchor1, splitPosition);
+        this.addSegment(newSegment.idAnchor2, idAnchor2, null, positionAnchor2);
+    },
+    addSegment:function(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2)
+    {
+        var s = new Segment(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2);
+        s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
+        s.addEventListener(InteractiveEvent.SPLIT, this.splitSegment.proxy(this), false);
+        this.segments.push(s);
+        return s;
     }
 });
 
@@ -587,14 +701,14 @@ Link.create = function(pFirstBlock, pSecondBlock)
 };
 
 var SVGElement = {
-    create:function(pName, pAttributes, pParentNode)
+    create:function(pName, pAttributes, pParentNode, pInsertBefore)
     {
-        return Element.create(pName, pAttributes, pParentNode, NS_SVG);
+        return Element.create(pName, pAttributes, pParentNode, pInsertBefore, NS_SVG);
     }
 };
 
 var Element = {
-    create:function(pName, pAttributes, pParentNode, pNs)
+    create:function(pName, pAttributes, pParentNode, pInsertBefore, pNs)
     {
         var element = pNs?document.createElementNS(pNs, pName):document.createElement(pName);
 
@@ -614,7 +728,16 @@ var Element = {
         }
 
         if(pParentNode)
-            pParentNode.appendChild(element);
+        {
+            if(pInsertBefore)
+            {
+                pParentNode.insertBefore(element, pInsertBefore);
+            }
+            else
+            {
+                pParentNode.appendChild(element);
+            }
+        }
 
         return element;
     }
