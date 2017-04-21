@@ -456,27 +456,48 @@ Block.create = function()
     dispatchers[g.getAttribute("id")].select();
 };
 
-
-function Link(pElement, pFirstBlock ,pSecondBlock)
+function Anchor(pId, pRestraint)
 {
-    this.element = pElement;
-    var id = this.element.getAttribute("id");
-    this.firstBlock = pFirstBlock;
-    this.secondBlock = pSecondBlock;
-    dispatchers[pFirstBlock].addNextBlock(pSecondBlock, id);
-    dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, id);
-    var elements = id.split("_");
-    if(elements.length !== 3)
-        return;
+    var opt = {
+        "r":"10",
+        "id":pId,
+        "data-role":"block"
+    };
+    if(pRestraint)
+    {
+        opt['data-draggable'] = "restraintTo:"+pRestraint;
+    }
+    this.element = SVGElement.create("circle", opt, svg);
+    this._setupDraggable(this.element);
+}
 
-    this.from = document.getElementById(elements[1]);
-    this.to = document.getElementById(elements[2]);
+Class.define(Anchor, [Draggable],  {
 
-    if(!this.from || ! this.to)
-        return;
+});
 
-    this.draggableFrom  = dispatchers[elements[1]];
-    this.draggableTo = dispatchers[elements[2]];
+function Segment(pBeforeRestraint, pAfterRestraint)
+{
+    this.removeAllEventListener();
+    var index = (document.querySelector("circle:last-of-type")?Number(document.querySelector("circle:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
+
+    var circleId = ANCHOR_BASE_ID+index;
+    var circleId2 = ANCHOR_BASE_ID+(index+1);
+
+    var id = LINK_BASE_ID+circleId+"_"+circleId2;
+    this.element = SVGElement.create("line",{
+        "id":id,
+        "class":"link",
+        "marker-end":"url(#arrow)"
+    }, svg);
+
+    pBeforeRestraint = pBeforeRestraint?pBeforeRestraint+",50%,bottom":null;
+    pAfterRestraint = pAfterRestraint?pAfterRestraint+",50%,top":null;
+
+    dispatchers[circleId] = new Anchor(circleId, pBeforeRestraint);
+    dispatchers[circleId2] = new Anchor(circleId2, pAfterRestraint);
+
+    this.draggableFrom  = dispatchers[circleId];
+    this.draggableTo = dispatchers[circleId2];
 
     this.draggableFrom.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePositionHandler.proxy(this), false);
     this.draggableFrom.addEventListener(InteractiveEvent.REMOVED, this.draggableFromRemoved.proxy(this), false);
@@ -485,7 +506,7 @@ function Link(pElement, pFirstBlock ,pSecondBlock)
     this._updatePositionHandler();
 }
 
-Class.define(Link, [], {
+Class.define(Segment, [EventDispatcher], {
     _updatePositionHandler:function(e)
     {
         var scroll = Context.getScroll();
@@ -504,8 +525,7 @@ Class.define(Link, [], {
             this.draggableFrom.remove();
         if(this.draggableTo)
             this.draggableTo.remove();
-        links[id] = null;
-        delete links[id];
+        this.dispatchEvent(new Event(InteractiveEvent.REMOVED));
     },
     draggableFromRemoved:function(e)
     {
@@ -519,32 +539,36 @@ Class.define(Link, [], {
     }
 });
 
+function Link(pFirstBlock ,pSecondBlock)
+{
+    this.id = LINK_BASE_ID+pFirstBlock+"_"+pSecondBlock;
+    links[this.id] = this;
+    dispatchers[pFirstBlock].addNextBlock(pSecondBlock, this.id);
+    dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, this.id);
+    var s = new Segment(pFirstBlock, pSecondBlock);
+    this._removeHandler = this.remove.proxy(this);
+    s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
+    this.segments = [s];
+}
+
+Class.define(Link, [], {
+    remove:function(e)
+    {
+        var s;
+        while(this.segments.length)
+        {
+            s = this.segments.shift();
+            s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
+            s.remove();
+        }
+        links[this.id] = null;
+        delete links[this.id];
+    }
+});
+
 Link.create = function(pFirstBlock, pSecondBlock)
 {
-
-    var index = (document.querySelector("circle:last-of-type")?Number(document.querySelector("circle:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
-
-    var id = LINK_BASE_ID+ANCHOR_BASE_ID+index+"_"+ANCHOR_BASE_ID+(index+1);
-    var line = SVGElement.create("line",{
-        "id":id,
-        "class":"link",
-        "marker-end":"url(#arrow)"
-    }, svg);
-
-    var circle = SVGElement.create("circle", {
-        "r":"10",
-        "id":ANCHOR_BASE_ID+index,
-        "data-draggable":"restraintTo:"+pFirstBlock+",50%,bottom",
-        "data-role":"block"
-    }, svg);
-    dispatchers[circle.getAttribute("id")] = new Draggable(circle);
-    circle = SVGElement.create("circle", {
-        "r":"10",
-        "id":ANCHOR_BASE_ID+(index+1),
-        "data-draggable":"restraintTo:"+ pSecondBlock+",50%,top"
-    }, svg);
-    dispatchers[circle.getAttribute("id")] = new Draggable(circle);
-    links[id] = new Link(line, pFirstBlock, pSecondBlock);
+    return new Link(pFirstBlock, pSecondBlock);
 };
 
 var SVGElement = {
@@ -646,6 +670,7 @@ Class.define(PropertiesEditor, [], {
                         action.addEventListener("click", function(e){
                             var t = e.currentTarget;
                             var remove = t.getAttribute("data-remove");
+                            console.log(remove);
                             links[remove].remove();
                             propertiesEditor.edit(pElement);
                         }, false);
