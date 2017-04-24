@@ -897,7 +897,7 @@ Class.define(PropertiesEditor, [], {
     },
     move:function(pVector)
     {
-        if(!this.editing_element||!pVector||pVector.length!=2)
+        if(svg.classList.contains("frozen")||!this.editing_element||!pVector||pVector.length!=2)
             return;
         this.editing_element.move(pVector[0], pVector[1]);
     }
