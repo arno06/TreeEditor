@@ -922,13 +922,13 @@ function KeyboardHandler()
 Class.define(KeyboardHandler, [EventDispatcher], {
     _keydownHandler:function(e)
     {
-        e.preventDefault();
+        if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1)
+            e.preventDefault();
         this.states[e.keyCode] = true;
         this.triggerShortcuts();
     },
     _keyupHandler:function(e)
     {
-        e.preventDefault();
         this.states[e.keyCode] = false;
         delete this.states[e.keyCode];
         this.triggerShortcuts();
