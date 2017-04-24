@@ -5,6 +5,7 @@ var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
 var CLASS_SELECTED = "selected";
 
+var keyboardHandler;
 var propertiesEditor;
 var dispatchers = {};
 var links = {};
@@ -179,6 +180,10 @@ Class.define(Draggable, [EventDispatcher], {
     {
         this.element.setAttribute("transform", "translate("+pX+","+pY+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
+    },
+    move:function(pVectorX, pVectorY)
+    {
+        this.setPosition(this.getX()+pVectorX, this.getY()+pVectorY);
     },
     getStringPosition:function()
     {
@@ -749,11 +754,24 @@ var Element = {
 function PropertiesEditor(pElement)
 {
     this.element = pElement;
+    this.editing_element = null;
+    var normalMove = 5;
+    var tiledMove = 15;
+    keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
+    keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
+    keyboardHandler.addShortcut([KeyboardHandler.RIGHT], this.move.proxy(this), [normalMove, 0]);
+    keyboardHandler.addShortcut([KeyboardHandler.TOP], this.move.proxy(this), [0, -normalMove]);
+    keyboardHandler.addShortcut([KeyboardHandler.BOTTOM], this.move.proxy(this), [0, normalMove]);
+    keyboardHandler.addShortcut([KeyboardHandler.LEFT, KeyboardHandler.CTRL], this.move.proxy(this), [-tiledMove, 0]);
+    keyboardHandler.addShortcut([KeyboardHandler.RIGHT, KeyboardHandler.CTRL], this.move.proxy(this), [tiledMove, 0]);
+    keyboardHandler.addShortcut([KeyboardHandler.TOP, KeyboardHandler.CTRL], this.move.proxy(this), [0, -tiledMove]);
+    keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
 }
 
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
+        this.editing_element = pElement;
         var editable_props = pElement.getEditableProperties();
 
         var container = this.element.querySelector(".properties");
@@ -872,8 +890,16 @@ Class.define(PropertiesEditor, [], {
     },
     deselect:function()
     {
+        this.editing_element = null;
+        document.querySelectorAll(".draggable."+CLASS_SELECTED).forEach(function(pEl){pEl.classList.remove(CLASS_SELECTED);});
         var container = this.element.querySelector(".properties");
         container.innerHTML = "";
+    },
+    move:function(pVector)
+    {
+        if(svg.classList.contains("frozen")||!this.editing_element||!pVector||pVector.length!=2)
+            return;
+        this.editing_element.move(pVector[0], pVector[1]);
     }
 });
 
@@ -883,6 +909,64 @@ function toggleFrozenStatus()
     document.querySelector("#toggle_ui .label").innerHTML = (svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
     document.querySelector("#toggle_ui .material-icons").innerHTML = (svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
 }
+
+function KeyboardHandler()
+{
+    this.removeAllEventListener();
+    document.addEventListener("keydown", this._keydownHandler.proxy(this), false);
+    document.addEventListener("keyup", this._keyupHandler.proxy(this), false);
+    this.states = {};
+    this.shortcuts = [];
+}
+
+Class.define(KeyboardHandler, [EventDispatcher], {
+    _keydownHandler:function(e)
+    {
+        if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1)
+            e.preventDefault();
+        this.states[e.keyCode] = true;
+        this.triggerShortcuts();
+    },
+    _keyupHandler:function(e)
+    {
+        this.states[e.keyCode] = false;
+        delete this.states[e.keyCode];
+        this.triggerShortcuts();
+    },
+    addShortcut:function(pKeys, pHandler, pParameters)
+    {
+        this.shortcuts.push({keys:pKeys, handler:pHandler, parameters:pParameters});
+    },
+    triggerShortcuts:function()
+    {
+        if(Object.keys(this.states).length === 0 && this.states.constructor === Object)
+        {
+            return;
+        }
+        var shortcutInfo;
+        var trigger, k, maxk, key;
+        for(var i = 0, max = this.shortcuts.length; i<max; i++)
+        {
+            shortcutInfo = this.shortcuts[i];
+            trigger = true;
+            for(k = 0, maxk = shortcutInfo.keys.length; k<maxk; k++)
+            {
+                key = shortcutInfo.keys[k];
+                trigger = trigger&&this.states[key];
+            }
+            if(trigger)
+                shortcutInfo.handler(shortcutInfo.parameters||{});
+        }
+    }
+});
+
+KeyboardHandler.ESC = 27;
+KeyboardHandler.LEFT = 37;
+KeyboardHandler.RIGHT = 39;
+KeyboardHandler.TOP = 38;
+KeyboardHandler.BOTTOM = 40;
+KeyboardHandler.TAB = 9;
+KeyboardHandler.CTRL = 17;
 
 (function(){
 
@@ -900,8 +984,10 @@ function toggleFrozenStatus()
         svg.querySelectorAll('line.link').forEach(function(pElement){
             new Link(pElement);
         });
+        keyboardHandler = new KeyboardHandler();
 
         propertiesEditor = new PropertiesEditor(document.querySelector(".properties_editor"));
+
     }
 
     NodeList.prototype.forEach = Array.prototype.forEach;
