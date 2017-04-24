@@ -565,6 +565,9 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 Class.define(Segment, [EventDispatcher], {
     _doubleClickHandler:function(e)
     {
+        if(svg.classList.contains("frozen"))
+            return;
+
         this.splitInfo = e;
         this.dispatchEvent(new Event(InteractiveEvent.SPLIT));
     },
