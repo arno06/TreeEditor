@@ -16,6 +16,20 @@ var type_list = {
     "reflexion": "&Eacute;valuation",
     "treatment": "Traitement"
 };
+var grade_list = {
+    "none":"Aucun Grade",
+    "grade_a":"Grade A",
+    "grade_b":"Grade B",
+    "grade_c":"Grade C",
+    "ae":"AE"
+};
+var note_list = {
+    "none":"Sans Note",
+    "1":"1",
+    "2":"2",
+    "3":"3",
+    "4":"4"
+};
 
 var Context = {
     getScroll:function()
@@ -328,6 +342,11 @@ Class.define(Resizable, [Draggable], {
         var resizer = this.element.querySelector('path[data-role="resize"]');
         resizer.setAttribute("transform", "translate("+(pWidth-15)+", "+(pHeight-15)+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
+    },
+    getDimensions:function()
+    {
+        var rect = this.element.querySelector("rect");
+        return {width:Number(rect.getAttribute("width")), height:Number(rect.getAttribute("height"))};
     }
 });
 
@@ -337,6 +356,7 @@ function Block(pElement)
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
+    this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-25,bottom")];
 }
 
 Class.define(Block,[Resizable], {
@@ -357,6 +377,26 @@ Class.define(Block,[Resizable], {
             case "type":
                 this.element.setAttribute("data-type", pValue);
                 break;
+            case "grade":
+                if(!grade_list[pValue])
+                    return;
+                this.collections[1].removeElements();
+                if(pValue !== "none")
+                {
+                    this.collections[1].addElement(grade_list[pValue], "Grade");
+                }
+                this.element.setAttribute("data-grade", pValue);
+                break;
+            case "note":
+                if(!note_list[pValue])
+                    return;
+                this.collections[0].removeElements();
+                if(pValue !== "none")
+                {
+                    this.collections[0].addElement(note_list[pValue], "Note");
+                }
+                this.element.setAttribute("data-note", pValue);
+                break;
         }
     },
     getEditableProperties:function()
@@ -372,6 +412,18 @@ Class.define(Block,[Resizable], {
                 "type":"select",
                 "data":type_list,
                 "value":this.element.getAttribute("data-type")
+            },
+            "grade":{
+                "label":"Grade",
+                "type":"select",
+                "data":grade_list,
+                "value":this.element.getAttribute("data-grade")||"none"
+            },
+            "note":{
+                "label":"Note",
+                "type":"select",
+                "data":note_list,
+                "value":this.element.getAttribute("data-note")||"none"
             }
         };
         var hasNext = false;
@@ -490,7 +542,8 @@ function Anchor(pId, pPosition)
     var opt = {
         "r":"10",
         "id":pId,
-        "data-role":"block"
+        "data-role":"block",
+        "class":"anchor"
     };
     if(pPosition)
     {
@@ -526,7 +579,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 {
     this.removeAllEventListener();
 
-    var index = (document.querySelector("circle:last-of-type")?Number(document.querySelector("circle:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
+    var index = (document.querySelector("circle.anchor:last-of-type")?Number(document.querySelector("circle.anchor:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
 
     this.idAnchor1 = pIdAnchor1||ANCHOR_BASE_ID+index;
     this.idAnchor2 = pIdAnchor2||ANCHOR_BASE_ID+(index+1);
@@ -544,7 +597,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
     this.element = SVGElement.create("line",{
         "id":this.id,
         "class":"link"
-    }, svg, svg.querySelector("circle.draggable"));
+    }, svg, svg.querySelector("circle.anchor.draggable"));
 
     if(pPositionAnchor2&&pPositionAnchor2.indexOf("restraintTo:")===0)
     {
@@ -676,7 +729,8 @@ Class.define(Link, [], {
         else
             positionAnchor2 = anchorsPositions[1];
 
-        var splitPosition = s.splitInfo.clientX+","+ s.splitInfo.clientY;
+        var scroll = Context.getScroll();
+        var splitPosition = (scroll.x+s.splitInfo.clientX)+","+ (scroll.y+s.splitInfo.clientY);
 
         s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
         var segments = [];
@@ -706,6 +760,119 @@ Class.define(Link, [], {
 Link.create = function(pFirstBlock, pSecondBlock)
 {
     return new Link(pFirstBlock, pSecondBlock);
+};
+
+function ElementCollection(pType, pParentBlock, pParentAlign)
+{
+    this.groupElement = SVGElement.create("g", {"data-role":pType}, pParentBlock.element);
+    this.parentBlock = pParentBlock;
+    this.parentAlign = pParentAlign;
+    this.elements = [];
+    this.updatePosition();
+    this._updatePosition = this.updatePosition.proxy(this);
+    this.parentBlock.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePosition);
+    this.parentBlock.addEventListener(InteractiveEvent.REMOVED, this.parentRemovedHandler);
+}
+
+Class.define(ElementCollection, [], {
+    addElement:function(pLabel, pType)
+    {
+        if(!ElementCollection[pType])
+            return;
+        this.elements.push(ElementCollection[pType](pLabel, this.groupElement));
+        this.updatePosition();
+    },
+    setElements:function(pElements)
+    {
+        var ref = this;
+        pElements.forEach(function(pElement)
+        {
+            ref.groupElement.appendChild(pElement);
+        });
+        this.elements = pElements;
+        this.updatePosition();
+    },
+    removeElements:function()
+    {
+        this.elements.forEach(function(pElement)
+        {
+            pElement.parentNode.removeChild(pElement);
+        });
+        this.elements = [];
+        this.updatePosition();
+    },
+    getWidth:function()
+    {
+        var t = this.groupElement.getBoundingClientRect();
+        return Number(t.width)||0;
+    },
+    getHeight:function()
+    {
+        var t = this.groupElement.getBoundingClientRect();
+        return Number(t.height)||0;
+    },
+    updatePosition:function()
+    {
+        var currentX = 0;
+        for(var i = 0, max = this.elements.length; i<max; i++)
+        {
+            this.elements[i].setAttribute("transform", "translate("+currentX+",0)");
+            currentX += this.elements[i].getBoundingClientRect().width + 3;
+        }
+        var alignments = this.parentAlign.split(",");
+        var x = 0;
+        var y = 0;
+        if(alignments.length==2)
+        {
+            var marginLeft = alignments[0].replace("right", "").replace("left", "");
+            var marginTop = alignments[1].replace("top", "").replace("bottom", "");
+            var left = alignments[0].replace(marginLeft, "");
+            var top = alignments[1].replace(marginTop, "");
+            var parentDimensions = this.parentBlock.getDimensions();
+            switch(left)
+            {
+                case "right":
+                    x = parentDimensions.width - this.getWidth();
+                    break;
+            }
+            switch(top)
+            {
+                case "bottom":
+                    y = parentDimensions.height - this.getHeight();
+                    break;
+            }
+
+            if(marginLeft)
+                x += Number(marginLeft);
+            if(marginTop)
+                y += Number(marginTop);
+        }
+        this.groupElement.setAttribute("transform", "translate("+x+","+y+")");
+    }
+});
+
+ElementCollection.Grade = function(pLabel, pParent)
+{
+    var g = SVGElement.create("g", {"data-role":"grade"}, pParent);
+    var rect = SVGElement.create("rect", {}, g);
+    var label = SVGElement.create("text", {"innerHTML": pLabel, "y":10}, g);
+    rect.setAttribute("width", label.getBoundingClientRect().width);
+    rect.setAttribute("height", label.getBoundingClientRect().height);
+    return g;
+};
+
+ElementCollection.Note = function(pLabel, pParent)
+{
+    var g = SVGElement.create("g", {"data-role":"note"}, pParent);
+    var circle = SVGElement.create("circle", {}, g);
+    var label = SVGElement.create("text", {"innerHTML": pLabel}, g);
+    var r = Math.max(label.getBBox().width, label.getBBox().height)>>1;
+    circle.setAttribute("cx", r);
+    circle.setAttribute("cy", r);
+    circle.setAttribute("r", r);
+    label.setAttribute("x", r - (r>>1)-1);
+    label.setAttribute("y", (2*r)-3);
+    return g;
 };
 
 var SVGElement = {
