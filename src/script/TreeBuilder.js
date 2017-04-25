@@ -266,7 +266,7 @@ var InteractiveEvent = {
 
 function Resizable(pElement)
 {
-
+    this._setupResizable(pElement);
 }
 
 Class.define(Resizable, [Draggable], {
@@ -474,7 +474,7 @@ Block.create = function()
     });
 
     var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-    var text = SVGElement.create("text", {"x":"10", "y":"30", "innerHTML":type_list.diagnostic}, g);
+    var text = SVGElement.create("text", {"x":"10", "y":"25", "innerHTML":type_list.diagnostic}, g);
 
     svg.appendChild(g);
 
