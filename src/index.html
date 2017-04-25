@@ -31,13 +31,19 @@
 
             svg g text{fill:#000;}
 
+            svg g.grade{}
+            svg g[data-role="grades"] g[data-role="grade"] rect{fill:#d20000;stroke-width: 0;}
+            svg g[data-role="grades"] g[data-role="grade"] text{fill:#fff;font-size:13px;}
+            svg g[data-role="notes"] g[data-role="note"] circle{fill:#60a0ff;stroke-width: 0;}
+            svg g[data-role="notes"] g[data-role="note"] text{fill:#fff;font-size:13px;}
+
             svg g path[data-role="resize"]{cursor:nwse-resize;}
 
             svg .draggable:hover rect{stroke-width: 2px;stroke: rgb(58, 164, 218);}
 
             svg .draggable.selected rect{stroke: rgb(58, 164, 218);}
 
-            svg circle{fill:rgba(0, 0, 0, .10);cursor:pointer;}
+            svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
             svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 
             svg line.link{stroke:black;stroke-width:2px;border:solid 4px #ff0000;}
