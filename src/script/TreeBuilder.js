@@ -69,7 +69,7 @@ Class.define(Draggable, [EventDispatcher], {
         this.options = this._parseOptions(this.element.getAttribute("data-draggable"));
         this.relativePointer = {x:0, y:0};
         this.element.addEventListener("mousedown", this._startDragHandler.proxy(this), false);
-        this.element.addEventListener("mousedown", this._selectHandler.proxy(this), false);
+        this.element.addEventListener("mouseup", this._selectHandler.proxy(this), false);
         this.__dropHandler = this._dropHandler.proxy(this);
         this.__dragHandler = this._dragHandler.proxy(this);
         if(this.options.restraintTo)
@@ -81,7 +81,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _selectHandler:function(e)
     {
-        if(e && !e.ctrlKey)
+        if(e && !e.ctrlKey && !DragSelector.isSelected(this))
             DragSelector.deselectAll();
         DragSelector.select(this);
     },
@@ -964,7 +964,7 @@ function PropertiesEditor(pElement)
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
-        document.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
+        this.deselect();
         last_block = pElement.element.getAttribute("id");
         pElement.element.classList.add(PropertiesEditor.CLASS);
 
@@ -1066,7 +1066,7 @@ Class.define(PropertiesEditor, [], {
                 var t = e.currentTarget;
                 var selectedValue = t.parentNode.querySelector("select").value;
                 Link.create(pElement.element.getAttribute("id"), selectedValue);
-                propertiesEditor.edit(pElement);
+                pElement.select();
             }, false);
         }
 
@@ -1074,7 +1074,10 @@ Class.define(PropertiesEditor, [], {
         input = Element.create("button", {}, inp_ct);
         Element.create("span", {"class":"material-icons", "innerHTML":"&#xE145;"}, input);
         Element.create("span", {"innerHTML":"Ajouter un block"}, input);
-        input.addEventListener("click", Block.create, false);
+        input.addEventListener("click", function(){
+            DragSelector.deselectAll();
+            Block.create();
+        }, false);
         input = Element.create("button", {"class":"delete"}, inp_ct);
         Element.create("span", {"class":"material-icons", "innerHTML":"&#xE872;"}, input);
         Element.create("span", {"innerHTML":"Supprimer le block"}, input);
@@ -1086,7 +1089,6 @@ Class.define(PropertiesEditor, [], {
     deselect:function()
     {
         document.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
-        DragSelector.deselectAll();
         var container = this.element.querySelector(".properties");
         container.innerHTML = "";
     },
@@ -1112,6 +1114,7 @@ PropertiesEditor.CLASS = "edit";
 
 function DragSelector()
 {
+    keyboardHandler.addShortcut([KeyboardHandler.ESC], DragSelector.deselectAll);
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
@@ -1123,7 +1126,7 @@ Class.define(DragSelector, [], {
         var id = e.target.getAttribute("id")|| e.target.parentNode.getAttribute("id");
         var parentD = dispatchers[id];
 
-        if(e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD))))
+        if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize") || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
             return;
 
         e.stopImmediatePropagation();
