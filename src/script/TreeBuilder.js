@@ -68,8 +68,8 @@ Class.define(Draggable, [EventDispatcher], {
         this.element.classList.add("draggable");
         this.options = this._parseOptions(this.element.getAttribute("data-draggable"));
         this.relativePointer = {x:0, y:0};
-        this.centerRelativePointer = this.element.nodeName.toLowerCase() === "circle";
         this.element.addEventListener("mousedown", this._startDragHandler.proxy(this), false);
+        this.element.addEventListener("mousedown", this._selectHandler.proxy(this), false);
         this.__dropHandler = this._dropHandler.proxy(this);
         this.__dragHandler = this._dragHandler.proxy(this);
         if(this.options.restraintTo)
@@ -79,6 +79,12 @@ Class.define(Draggable, [EventDispatcher], {
             this._updateConstraint();
         }
     },
+    _selectHandler:function(e)
+    {
+        if(e && !e.ctrlKey)
+            DragSelector.deselectAll();
+        DragSelector.select(this);
+    },
     _startDragHandler:function(e)
     {
         if(Context.isFrozen())
@@ -86,11 +92,7 @@ Class.define(Draggable, [EventDispatcher], {
 
         this.relativePointer.x = e.clientX - this.getX();
         this.relativePointer.y = e.clientY - this.getY();
-        if(this.centerRelativePointer)
-        {
-            this.relativePointer.x -= (this.getWidth()>>1);
-            this.relativePointer.y -= (this.getHeight()>>1);
-        }
+        this.relativePointer.y = e.clientY - this.getY();
         document.addEventListener("mouseup", this.__dropHandler, false);
         document.addEventListener("mousemove", this.__dragHandler, false);
     },
@@ -102,51 +104,8 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _dragHandler:function(e)
     {
-        var restraint = this.options.restraintTo;
         var s = Context.getScroll();
         var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
-        p.x = Math.max(p.x, 0);
-        p.y = Math.max(p.y, 0);
-        p.x = Math.min(p.x, svg.getBoundingClientRect().width - this.getWidth());
-        p.y = Math.min(p.y, svg.getBoundingClientRect().height- this.getHeight());
-        if(restraint)
-        {
-            var t = dispatchers[restraint[0]];
-
-            p.x = Math.max(t.getX(), p.x);
-            p.x = Math.min(t.getX() + t.getWidth(), p.x);
-            p.y = Math.max(t.getY(), p.y);
-            p.y = Math.min(t.getY() + t.getHeight(), p.y);
-            var newRestraint = {x:(((p.x - t.getX()) / t.getWidth())*100)+"%", y:(((p.y - t.getY()) / t.getHeight()) * 100)+"%"};
-            if(["left", "right"].indexOf(restraint[1])>-1)
-            {
-                if(restraint[1]== "left")
-                {
-                    p.x = t.getX();
-                }
-                else
-                {
-                    p.x = t.getX()+t.getWidth();
-                }
-                newRestraint.x = restraint[1];
-            }
-            else if (["top", "bottom"].indexOf(restraint[2])>-1)
-            {
-                if(restraint[2]== "top")
-                {
-                    p.y = s.y + t.getY();
-                }
-                else
-                {
-                    p.y = s.y + t.getY()+t.getHeight();
-                }
-                newRestraint.y = restraint[2];
-            }
-
-            this.options.restraintTo[1] = newRestraint.x;
-            this.options.restraintTo[2] = newRestraint.y;
-            this._updateOptions();
-        }
         this.setPosition(p.x, p.y);
     },
     _parseOptions:function(pString)
@@ -201,6 +160,50 @@ Class.define(Draggable, [EventDispatcher], {
     },
     setPosition:function(pX, pY)
     {
+        var restraint = this.options.restraintTo;
+        var s = Context.getScroll();
+        pX = Math.max(pX, 0);
+        pY = Math.max(pY, 0);
+        pX = Math.min(pX, svg.getBoundingClientRect().width - this.getWidth());
+        pY = Math.min(pY, svg.getBoundingClientRect().height- this.getHeight());
+        if(restraint)
+        {
+            var t = dispatchers[restraint[0]];
+
+            pX = Math.max(t.getX(), pX);
+            pX = Math.min(t.getX() + t.getWidth(), pX);
+            pY = Math.max(t.getY(), pY);
+            pY = Math.min(t.getY() + t.getHeight(), pY);
+            var newRestraint = {x:(((pX - t.getX()) / t.getWidth())*100)+"%", y:(((pY - t.getY()) / t.getHeight()) * 100)+"%"};
+            if(["left", "right"].indexOf(restraint[1])>-1)
+            {
+                if(restraint[1]== "left")
+                {
+                    pX = t.getX();
+                }
+                else
+                {
+                    pX = t.getX()+t.getWidth();
+                }
+                newRestraint.x = restraint[1];
+            }
+            else if (["top", "bottom"].indexOf(restraint[2])>-1)
+            {
+                if(restraint[2]== "top")
+                {
+                    pY = s.y + t.getY();
+                }
+                else
+                {
+                    pY = s.y + t.getY()+t.getHeight();
+                }
+                newRestraint.y = restraint[2];
+            }
+
+            this.options.restraintTo[1] = newRestraint.x;
+            this.options.restraintTo[2] = newRestraint.y;
+            this._updateOptions();
+        }
         this.element.setAttribute("transform", "translate("+pX+","+pY+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     },
@@ -386,10 +389,8 @@ function Block(pElement)
 }
 
 Class.define(Block,[Resizable], {
-    select:function(e)
+    select:function()
     {
-        if(e && e.ctrlKey)
-            DragSelector.select(this);
         propertiesEditor.edit(this);
     },
     setProperty:function(pName, pValue)
@@ -564,8 +565,9 @@ Block.create = function()
 
 function Anchor(pId, pPosition)
 {
+    this.radius = 10;
     var opt = {
-        "r":"10",
+        "r":this.radius,
         "id":pId,
         "data-role":"block",
         "class":"anchor"
@@ -597,6 +599,16 @@ Class.define(Anchor, [Draggable],  {
     isShared:function()
     {
         return this.element.getAttribute("data-shared") && this.element.getAttribute("data-shared") === "true";
+    },
+    getX:function()
+    {
+        var t = this.element.getBoundingClientRect();
+        return (Number(t.left)||0)+this.radius;
+    },
+    getY:function()
+    {
+        var t = this.element.getBoundingClientRect();
+        return (Number(t.top)||0)+this.radius;
     }
 });
 
@@ -657,10 +669,10 @@ Class.define(Segment, [EventDispatcher], {
     _updatePositionHandler:function(e)
     {
         var scroll = Context.getScroll();
-        this.element.setAttribute("x1", scroll.x + this.anchor1.getX()+(this.anchor1.getWidth()>>1));
-        this.element.setAttribute("y1", scroll.y + this.anchor1.getY()+(this.anchor1.getHeight()>>1));
-        this.element.setAttribute("x2", scroll.x + this.anchor2.getX()+(this.anchor2.getWidth()>>1));
-        this.element.setAttribute("y2", scroll.y + this.anchor2.getY()+(this.anchor1.getHeight()>>1));
+        this.element.setAttribute("x1", scroll.x + this.anchor1.getX());
+        this.element.setAttribute("y1", scroll.y + this.anchor1.getY());
+        this.element.setAttribute("x2", scroll.x + this.anchor2.getX());
+        this.element.setAttribute("y2", scroll.y + this.anchor2.getY());
     },
     remove:function(e)
     {
