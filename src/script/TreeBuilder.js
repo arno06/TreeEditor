@@ -3,7 +3,6 @@ var GROUP_BASE_ID = "group-";
 var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
-var CLASS_SELECTED = "selected";
 
 var keyboardHandler;
 var propertiesEditor;
@@ -43,6 +42,16 @@ var Context = {
             p = p.parentNode;
         }
         return scroll;
+    },
+    toggleFrozenStatus:function()
+    {
+        svg.classList.toggle("frozen");
+        document.querySelector("#toggle_ui .label").innerHTML = (svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
+        document.querySelector("#toggle_ui .material-icons").innerHTML = (svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
+    },
+    isFrozen:function()
+    {
+        return svg.classList.contains("frozen");
     }
 };
 
@@ -72,7 +81,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _startDragHandler:function(e)
     {
-        if(svg.classList.contains("frozen"))
+        if(Context.isFrozen())
             return;
 
         this.relativePointer.x = e.clientX - this.getX();
@@ -269,6 +278,23 @@ Class.define(Draggable, [EventDispatcher], {
             x: scroll.x + this.getX()+(left * this.getWidth()),
             y: scroll.y + this.getY()+(top * this.getHeight())
         };
+    },
+    checkOverlap:function(pRect)
+    {
+        if(this.options.restraintTo)
+            return;
+
+        var left1 = this.getX();
+        var right1 = this.getX()+this.getWidth();
+        var top1 = this.getY();
+        var bottom1 = this.getY()+this.getHeight();
+
+        var left2 = pRect.x;
+        var right2 = pRect.x+pRect.width;
+        var top2 = pRect.y;
+        var bottom2 = pRect.y+pRect.height;
+
+        return (left1<right2 && left2<right1 && top1<bottom2 && top2 < bottom1);
     }
 });
 
@@ -295,7 +321,7 @@ Class.define(Resizable, [Draggable], {
     },
     _downHandler:function(e)
     {
-        if(svg.classList.contains("frozen"))
+        if(Context.isFrozen())
             return;
 
         var t = e.target;
@@ -360,11 +386,10 @@ function Block(pElement)
 }
 
 Class.define(Block,[Resizable], {
-    select:function()
+    select:function(e)
     {
-        document.querySelectorAll(".draggable."+CLASS_SELECTED).forEach(function(pEl){pEl.classList.remove(CLASS_SELECTED);});
-        last_block = this.element.getAttribute("id");
-        this.element.classList.add(CLASS_SELECTED);
+        if(e && e.ctrlKey)
+            DragSelector.select(this);
         propertiesEditor.edit(this);
     },
     setProperty:function(pName, pValue)
@@ -623,7 +648,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 Class.define(Segment, [EventDispatcher], {
     _doubleClickHandler:function(e)
     {
-        if(svg.classList.contains("frozen"))
+        if(Context.isFrozen())
             return;
 
         this.splitInfo = e;
@@ -782,16 +807,6 @@ Class.define(ElementCollection, [], {
         this.elements.push(ElementCollection[pType](pLabel, this.groupElement));
         this.updatePosition();
     },
-    setElements:function(pElements)
-    {
-        var ref = this;
-        pElements.forEach(function(pElement)
-        {
-            ref.groupElement.appendChild(pElement);
-        });
-        this.elements = pElements;
-        this.updatePosition();
-    },
     removeElements:function()
     {
         this.elements.forEach(function(pElement)
@@ -921,8 +936,7 @@ var Element = {
 function PropertiesEditor(pElement)
 {
     this.element = pElement;
-    this.editing_element = null;
-    var normalMove = 5;
+    var normalMove = 1;
     var tiledMove = 15;
     keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
     keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
@@ -938,7 +952,10 @@ function PropertiesEditor(pElement)
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
-        this.editing_element = pElement;
+        document.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
+        last_block = pElement.element.getAttribute("id");
+        pElement.element.classList.add(PropertiesEditor.CLASS);
+
         var editable_props = pElement.getEditableProperties();
 
         var container = this.element.querySelector(".properties");
@@ -1053,29 +1070,144 @@ Class.define(PropertiesEditor, [], {
             pElement.remove();
             propertiesEditor.deselect();
         }, false);
-
     },
     deselect:function()
     {
-        this.editing_element = null;
-        document.querySelectorAll(".draggable."+CLASS_SELECTED).forEach(function(pEl){pEl.classList.remove(CLASS_SELECTED);});
+        document.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
+        DragSelector.deselectAll();
         var container = this.element.querySelector(".properties");
         container.innerHTML = "";
     },
     move:function(pVector)
     {
-        if(svg.classList.contains("frozen")||!this.editing_element||!pVector||pVector.length!=2)
+        if(Context.isFrozen()||!pVector||pVector.length!=2)
             return;
-        this.editing_element.move(pVector[0], pVector[1]);
+
+        for(var i in dispatchers)
+        {
+            if(!dispatchers.hasOwnProperty(i))
+                continue;
+
+            if(DragSelector.isSelected(dispatchers[i]))
+            {
+                dispatchers[i].move(pVector[0], pVector[1]);
+            }
+        }
     }
 });
 
-function toggleFrozenStatus()
+PropertiesEditor.CLASS = "edit";
+
+function DragSelector()
 {
-    svg.classList.toggle("frozen");
-    document.querySelector("#toggle_ui .label").innerHTML = (svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
-    document.querySelector("#toggle_ui .material-icons").innerHTML = (svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
+    this._selectUpHandler = this.selectUpHandler.proxy(this);
+    this._selectMoveHandler = this.selectMoveHandler.proxy(this);
+    svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
 }
+
+Class.define(DragSelector, [], {
+    mousedownHandler:function(e)
+    {
+        var id = e.target.getAttribute("id")|| e.target.parentNode.getAttribute("id");
+        var parentD = dispatchers[id];
+
+        if(e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD))))
+            return;
+
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
+
+        var c = Context.getScroll();
+        this.startPosition = {x: e.clientX, y: e.clientY};
+
+        if(parentD&&DragSelector.isSelected(parentD))
+        {
+            var b;
+            for(var i in dispatchers)
+            {
+                if(!dispatchers.hasOwnProperty(i))
+                    continue;
+                b = dispatchers[i];
+
+                if(!DragSelector.isSelected(b))
+                    continue;
+
+                b._startDragHandler(e);
+            }
+        }
+        else
+        {
+            propertiesEditor.deselect();
+            document.addEventListener("mouseup", this._selectUpHandler, false);
+            document.addEventListener("mousemove", this._selectMoveHandler, false);
+            this.rect = SVGElement.create("rect", {"class":"selector", "x":(c.x+ e.clientX), "y":(c.y+ e.clientY)}, svg);
+        }
+    },
+    selectMoveHandler:function(e)
+    {
+        var width = e.clientX - this.startPosition.x;
+        var height = e.clientY - this.startPosition.y;
+
+        if(width<0)
+        {
+            this.rect.setAttribute("x", (this.startPosition.x - Math.abs(width)));
+        }
+        if(height<0)
+        {
+            this.rect.setAttribute("y", (this.startPosition.y - Math.abs(height)));
+        }
+
+        this.rect.setAttribute("width", Math.abs(width));
+        this.rect.setAttribute("height", Math.abs(height));
+
+        var rectangle = {};
+
+        var ref = this;
+        ["x","y","width","height"].forEach(function(pProp){
+            rectangle[pProp] = Number(ref.rect.getAttribute(pProp));
+        });
+
+        var b;
+        for(var i in dispatchers)
+        {
+            if(!dispatchers.hasOwnProperty(i))
+                continue;
+            b = dispatchers[i];
+            if(b.checkOverlap(rectangle))
+                DragSelector.select(b);
+            else
+                DragSelector.deselect(b);
+        }
+    },
+    selectUpHandler:function()
+    {
+        document.removeEventListener("mouseup", this._selectUpHandler, false);
+        document.removeEventListener("mousemove", this._selectMoveHandler, false);
+        svg.removeChild(this.rect);
+    }
+});
+
+DragSelector.ATTRIBUTE = "data-dragdrafted";
+DragSelector.select = function(pDraggable)
+{
+    pDraggable.element.setAttribute(DragSelector.ATTRIBUTE, "true");
+};
+DragSelector.isSelected = function(pDraggable)
+{
+    return pDraggable.element.getAttribute(DragSelector.ATTRIBUTE) && pDraggable.element.getAttribute(DragSelector.ATTRIBUTE) === "true";
+};
+DragSelector.deselect = function(pDraggable)
+{
+    pDraggable.element.removeAttribute(DragSelector.ATTRIBUTE);
+};
+DragSelector.deselectAll = function()
+{
+    svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){
+        pElement.removeAttribute(DragSelector.ATTRIBUTE);
+    });
+};
+
 
 function KeyboardHandler()
 {
@@ -1134,6 +1266,7 @@ KeyboardHandler.TOP = 38;
 KeyboardHandler.BOTTOM = 40;
 KeyboardHandler.TAB = 9;
 KeyboardHandler.CTRL = 17;
+KeyboardHandler.SHIFT = 20;
 
 (function(){
 
@@ -1155,6 +1288,7 @@ KeyboardHandler.CTRL = 17;
 
         propertiesEditor = new PropertiesEditor(document.querySelector(".properties_editor"));
 
+        var s = new DragSelector();
     }
 
     NodeList.prototype.forEach = Array.prototype.forEach;
