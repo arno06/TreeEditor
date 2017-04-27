@@ -41,12 +41,16 @@
 
             svg .draggable:hover rect{stroke-width: 2px;stroke: rgb(58, 164, 218);}
 
-            svg .draggable.selected rect{stroke: rgb(58, 164, 218);}
+            svg .draggable[data-dragdrafted="true"] rect{stroke: rgb(51, 153, 255);}
+
+            svg .draggable.edit rect{stroke: rgb(99, 218, 101);}
 
             svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
             svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 
-            svg line.link{stroke:black;stroke-width:2px;border:solid 4px #ff0000;}
+            svg line.link{stroke:black;stroke-width:2px;}
+
+            svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stroke-width: 1px;}
 
             .properties_editor{box-shadow:0 0 3px rgba(0, 0, 0, .3);}
 
@@ -94,7 +98,7 @@
         </svg>
         <div class="properties_editor">
             <div class="actions">
-                <button onclick="toggleFrozenStatus();" id="toggle_ui"><span class="material-icons">&#xE898;</span><span class="label">Bloquer l'interface</span></button>
+                <button onclick="Context.toggleFrozenStatus();" id="toggle_ui"><span class="material-icons">&#xE898;</span><span class="label">Bloquer l'interface</span></button>
             </div>
             <div class="properties">
 
