@@ -347,9 +347,21 @@ Class.define(Resizable, [Draggable], {
             y: e.clientY - this.getY()
         };
 
+        var diff = {
+            x: newPosition.x - this.relativePointer.x,
+            y: newPosition.y - this.relativePointer.y
+        };
+
+        if(e.shiftKey)
+        {
+            var max = Math.max(diff.x, diff.y);
+            diff.x = max;
+            diff.y = max;
+        }
+
         var newDimensions = {
-            width:this.startDimensions.width + (newPosition.x - this.relativePointer.x),
-            height:this.startDimensions.height + (newPosition.y - this.relativePointer.y)
+            width:this.startDimensions.width + diff.x,
+            height:this.startDimensions.height + diff.y
         };
 
         newDimensions.width = Math.max(newDimensions.width, 100);
