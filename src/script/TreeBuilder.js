@@ -4,12 +4,6 @@ var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
 
-var keyboardHandler;
-var propertiesEditor;
-var dispatchers = {};
-var links = {};
-var last_block = "";
-var svg;
 var type_list = {
     "diagnostic":"D&eacute;marche diagnostique",
     "reflexion": "&Eacute;valuation",
@@ -30,40 +24,16 @@ var note_list = {
     "4":"4"
 };
 
-var Context = {
-    getScroll:function()
-    {
-        var scroll = {x:0, y:0};
-        var p = svg;
-        while(p)
-        {
-            scroll.x += p.scrollLeft||0;
-            scroll.y += p.scrollTop||0;
-            p = p.parentNode;
-        }
-        return scroll;
-    },
-    toggleFrozenStatus:function()
-    {
-        svg.classList.toggle("frozen");
-        document.querySelector("#toggle_ui .label").innerHTML = (svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
-        document.querySelector("#toggle_ui .material-icons").innerHTML = (svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
-    },
-    isFrozen:function()
-    {
-        return svg.classList.contains("frozen");
-    }
-};
-
-function Draggable(pElement)
+function Draggable(pElement, pTreeEditor)
 {
-    this._setupDraggable(pElement);
+    this._setupDraggable(pElement, pTreeEditor);
 }
 
 Class.define(Draggable, [EventDispatcher], {
-    _setupDraggable:function(pElement)
+    _setupDraggable:function(pElement, pTreeEditor)
     {
         this.removeAllEventListener();
+        this.treeEditor = pTreeEditor;
         this.element = pElement;
         this.element.classList.add("draggable");
         this.options = this._parseOptions(this.element.getAttribute("data-draggable"));
@@ -74,20 +44,20 @@ Class.define(Draggable, [EventDispatcher], {
         this.__dragHandler = this._dragHandler.proxy(this);
         if(this.options.restraintTo)
         {
-            dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updateConstraint.proxy(this), false);
-            dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.REMOVED, this.remove.proxy(this), false);
+            this.treeEditor.dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updateConstraint.proxy(this), false);
+            this.treeEditor.dispatchers[this.options.restraintTo[0]].addEventListener(InteractiveEvent.REMOVED, this.remove.proxy(this), false);
             this._updateConstraint();
         }
     },
     _selectHandler:function(e)
     {
         if(e && !e.ctrlKey && !DragSelector.isSelected(this))
-            DragSelector.deselectAll();
+            this.treeEditor.deselectAll();
         DragSelector.select(this);
     },
     _startDragHandler:function(e)
     {
-        if(Context.isFrozen())
+        if(this.treeEditor.isFrozen())
             return;
 
         this.relativePointer.x = e.clientX - this.getX();
@@ -104,7 +74,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _dragHandler:function(e)
     {
-        var s = Context.getScroll();
+        var s = this.treeEditor.getScroll();
         var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
         this.setPosition(p.x, p.y);
     },
@@ -144,7 +114,7 @@ Class.define(Draggable, [EventDispatcher], {
     _updateConstraint:function()
     {
         var restraint = this.options.restraintTo;
-        var rPosition = dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
+        var rPosition = this.treeEditor.dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
         this.setPosition(rPosition.x, rPosition.y);
     },
     remove:function()
@@ -153,22 +123,22 @@ Class.define(Draggable, [EventDispatcher], {
         if(!this.element.parentNode)
             return;
         this.element.parentNode.removeChild(this.element);
-        dispatchers[id].dispatchEvent(new Event(InteractiveEvent.REMOVED));
+        this.treeEditor.dispatchers[id].dispatchEvent(new Event(InteractiveEvent.REMOVED));
         this.removeAllEventListener();
-        dispatchers[id] = null;
-        delete dispatchers[id];
+        this.treeEditor.dispatchers[id] = null;
+        delete this.treeEditor.dispatchers[id];
     },
     setPosition:function(pX, pY)
     {
         var restraint = this.options.restraintTo;
-        var s = Context.getScroll();
+        var s = this.treeEditor.getScroll();
         pX = Math.max(pX, 0);
         pY = Math.max(pY, 0);
-        pX = Math.min(pX, svg.getBoundingClientRect().width - this.getWidth());
-        pY = Math.min(pY, svg.getBoundingClientRect().height- this.getHeight());
+        pX = Math.min(pX, this.treeEditor.svg.getBoundingClientRect().width - this.getWidth());
+        pY = Math.min(pY, this.treeEditor.svg.getBoundingClientRect().height- this.getHeight());
         if(restraint)
         {
-            var t = dispatchers[restraint[0]];
+            var t = this.treeEditor.dispatchers[restraint[0]];
 
             pX = Math.max(t.getX(), pX);
             pX = Math.min(t.getX() + t.getWidth(), pX);
@@ -249,7 +219,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     getRelativePosition:function(pLeft, pTop)
     {
-        var scroll = Context.getScroll();
+        var scroll = this.treeEditor.getScroll();
         var left = 0;
         var top = 0;
 
@@ -307,24 +277,24 @@ var InteractiveEvent = {
     SPLIT: "evt_split"
 };
 
-function Resizable(pElement)
+function Resizable(pElement, pTreeEditor)
 {
-    this._setupResizable(pElement);
+    this._setupResizable(pElement, pTreeEditor);
 }
 
 Class.define(Resizable, [Draggable], {
-    _setupResizable:function(pElement)
+    _setupResizable:function(pElement, pTreeEditor)
     {
         this.__resizeHandler = this._resizeHandler.proxy(this);
         this.__resizedHandler = this._resizedHandler.proxy(this);
         pElement.addEventListener("mousedown", this._downHandler.proxy(this), false);
 
-        this._setupDraggable(pElement);
+        this._setupDraggable(pElement, pTreeEditor);
         SVGElement.create("path", {"d":"M10,0 L10,10 L0,10 Z", "transform":"translate("+(this.getWidth()-15)+", "+(this.getHeight()-15)+")", "fill":"#000", "data-role":"resize"}, this.element);
     },
     _downHandler:function(e)
     {
-        if(Context.isFrozen())
+        if(this.treeEditor.isFrozen())
             return;
 
         var t = e.target;
@@ -391,9 +361,9 @@ Class.define(Resizable, [Draggable], {
     }
 });
 
-function Block(pElement)
+function Block(pElement, pTreeEditor)
 {
-    this._setupResizable(pElement);
+    this._setupResizable(pElement, pTreeEditor);
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
@@ -403,7 +373,7 @@ function Block(pElement)
 Class.define(Block,[Resizable], {
     select:function()
     {
-        propertiesEditor.edit(this);
+        this.treeEditor.propertiesEditor.edit(this);
     },
     setProperty:function(pName, pValue)
     {
@@ -471,7 +441,7 @@ Class.define(Block,[Resizable], {
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
-            bl = dispatchers[i];
+            bl = this.treeEditor.dispatchers[i];
             next[i] = {"label":bl.element.querySelector("text").innerHTML, "extra":this.next[i]};
             hasNext = true;
         }
@@ -505,7 +475,7 @@ Class.define(Block,[Resizable], {
             {
                 this.next[i] = null;
                 delete this.next[i];
-                links[pLink].remove();
+                this.treeEditor.links[pLink].remove();
             }
         }
     },
@@ -517,7 +487,7 @@ Class.define(Block,[Resizable], {
                 return;
         }
         this.previous[pId] = pLine;
-        dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.previousBlockRemovedHandler.proxy(this), false);
+        this.treeEditor.dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.previousBlockRemovedHandler.proxy(this), false);
     },
     addNextBlock:function(pId, pLine)
     {
@@ -527,7 +497,7 @@ Class.define(Block,[Resizable], {
                 return;
         }
         this.next[pId] = pLine;
-        dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.nextBlockRemovedHandler.proxy(this), false);
+        this.treeEditor.dispatchers[pId].addEventListener(InteractiveEvent.REMOVED, this.nextBlockRemovedHandler.proxy(this), false);
     },
     getLinkedBlocks:function()
     {
@@ -548,34 +518,7 @@ Class.define(Block,[Resizable], {
     }
 });
 
-Block.create = function()
-{
-    var scroll = Context.getScroll();
-    var dimensions = {width:200, height:75};
-    var previous = dispatchers[last_block];
-
-    var selector = 'g[data-role="block"]:last-of-type';
-    var index = (document.querySelector(selector)?Number(document.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
-    var g = SVGElement.create("g", {
-        "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
-        "id":GROUP_BASE_ID+index,
-        "data-role":"block",
-        "data-type":"diagnostic"
-    });
-
-    var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-    var text = SVGElement.create("text", {"x":"10", "y":"25", "innerHTML":type_list.diagnostic}, g);
-
-    svg.appendChild(g);
-
-    dispatchers[g.getAttribute("id")] = new Block(g);
-
-    Link.create(last_block, g.getAttribute("id"));
-
-    dispatchers[g.getAttribute("id")].select();
-};
-
-function Anchor(pId, pPosition)
+function Anchor(pId, pPosition, pTreeEditor)
 {
     this.radius = 10;
     var opt = {
@@ -590,8 +533,8 @@ function Anchor(pId, pPosition)
             opt['data-draggable'] = pPosition;
     }
     this.id = pId;
-    this.element = SVGElement.create("circle", opt, svg);
-    this._setupDraggable(this.element);
+    this.element = SVGElement.create("circle", opt, pTreeEditor.svg);
+    this._setupDraggable(this.element, pTreeEditor);
     if(pPosition && pPosition.indexOf("restraintTo:")!==0)
     {
         var pos = pPosition.split(",");
@@ -624,29 +567,30 @@ Class.define(Anchor, [Draggable],  {
     }
 });
 
-function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
+function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTreeEditor)
 {
     this.removeAllEventListener();
-
+    this.treeEditor = pTreeEditor;
+    this.svg = pTreeEditor.svg;
     var index = (document.querySelector("circle.anchor:last-of-type")?Number(document.querySelector("circle.anchor:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
 
     this.idAnchor1 = pIdAnchor1||ANCHOR_BASE_ID+index;
     this.idAnchor2 = pIdAnchor2||ANCHOR_BASE_ID+(index+1);
 
     if(!pIdAnchor1)
-        dispatchers[this.idAnchor1] = new Anchor(this.idAnchor1, pPositionAnchor1);
+        this.treeEditor.dispatchers[this.idAnchor1] = new Anchor(this.idAnchor1, pPositionAnchor1, this.treeEditor);
     else
-        dispatchers[this.idAnchor1].share();
+        this.treeEditor.dispatchers[this.idAnchor1].share();
     if(!pIdAnchor2)
-        dispatchers[this.idAnchor2] = new Anchor(this.idAnchor2, pPositionAnchor2);
+        this.treeEditor.dispatchers[this.idAnchor2] = new Anchor(this.idAnchor2, pPositionAnchor2, this.treeEditor);
     else
-        dispatchers[this.idAnchor2].share();
+        this.treeEditor.dispatchers[this.idAnchor2].share();
 
     this.id = SEGMENT_BASE_ID+this.idAnchor1+"_"+this.idAnchor2;
     this.element = SVGElement.create("line",{
         "id":this.id,
         "class":"link"
-    }, svg, svg.querySelector("circle.anchor.draggable"));
+    }, this.svg, this.svg.querySelector("circle.anchor.draggable"));
 
     if(pPositionAnchor2&&pPositionAnchor2.indexOf("restraintTo:")===0)
     {
@@ -655,8 +599,8 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 
     this.element.addEventListener("dblclick", this._doubleClickHandler.proxy(this), false);
 
-    this.anchor1  = dispatchers[this.idAnchor1];
-    this.anchor2 = dispatchers[this.idAnchor2];
+    this.anchor1  = this.treeEditor.dispatchers[this.idAnchor1];
+    this.anchor2 = this.treeEditor.dispatchers[this.idAnchor2];
 
     this.__updatePositionHandler = this._updatePositionHandler.proxy(this);
     this._anchor1RemovedHandler = this.anchor1Removed.proxy(this);
@@ -672,7 +616,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2)
 Class.define(Segment, [EventDispatcher], {
     _doubleClickHandler:function(e)
     {
-        if(Context.isFrozen())
+        if(this.treeEditor.isFrozen())
             return;
 
         this.splitInfo = e;
@@ -680,7 +624,7 @@ Class.define(Segment, [EventDispatcher], {
     },
     _updatePositionHandler:function(e)
     {
-        var scroll = Context.getScroll();
+        var scroll = this.treeEditor.getScroll();
         this.element.setAttribute("x1", scroll.x + this.anchor1.getX());
         this.element.setAttribute("y1", scroll.y + this.anchor1.getY());
         this.element.setAttribute("x2", scroll.x + this.anchor2.getX());
@@ -731,12 +675,13 @@ Class.define(Segment, [EventDispatcher], {
     }
 });
 
-function Link(pFirstBlock ,pSecondBlock)
+function Link(pFirstBlock ,pSecondBlock, pTreeEditor)
 {
+    this.treeEditor = pTreeEditor;
     this.id = LINK_BASE_ID+pFirstBlock+"_"+pSecondBlock;
-    links[this.id] = this;
-    dispatchers[pFirstBlock].addNextBlock(pSecondBlock, this.id);
-    dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, this.id);
+    this.treeEditor.links[this.id] = this;
+    this.treeEditor.dispatchers[pFirstBlock].addNextBlock(pSecondBlock, this.id);
+    this.treeEditor.dispatchers[pSecondBlock].addPreviousBlock(pFirstBlock, this.id);
     this.firstBlock = pFirstBlock;
     this.secondBlock = pSecondBlock;
     this._removeHandler = this.remove.proxy(this);
@@ -754,8 +699,8 @@ Class.define(Link, [], {
             s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
             s.remove();
         }
-        links[this.id] = null;
-        delete links[this.id];
+        this.treeEditor.links[this.id] = null;
+        delete this.treeEditor.links[this.id];
     },
     splitSegment:function(e)
     {
@@ -778,7 +723,7 @@ Class.define(Link, [], {
         else
             positionAnchor2 = anchorsPositions[1];
 
-        var scroll = Context.getScroll();
+        var scroll = this.treeEditor.getScroll();
         var splitPosition = (scroll.x+s.splitInfo.clientX)+","+ (scroll.y+s.splitInfo.clientY);
 
         s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
@@ -798,18 +743,13 @@ Class.define(Link, [], {
     },
     addSegment:function(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2)
     {
-        var s = new Segment(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2);
+        var s = new Segment(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2, this.treeEditor);
         s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
         s.addEventListener(InteractiveEvent.SPLIT, this.splitSegment.proxy(this), false);
         this.segments.push(s);
         return s;
     }
 });
-
-Link.create = function(pFirstBlock, pSecondBlock)
-{
-    return new Link(pFirstBlock, pSecondBlock);
-};
 
 function ElementCollection(pType, pParentBlock, pParentAlign)
 {
@@ -957,27 +897,30 @@ var Element = {
     }
 };
 
-function PropertiesEditor(pElement)
+function PropertiesEditor(pElement, pTreeEditor)
 {
+    this.treeEditor = pTreeEditor;
     this.element = pElement;
     var normalMove = 1;
     var tiledMove = 15;
-    keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
-    keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
-    keyboardHandler.addShortcut([KeyboardHandler.RIGHT], this.move.proxy(this), [normalMove, 0]);
-    keyboardHandler.addShortcut([KeyboardHandler.TOP], this.move.proxy(this), [0, -normalMove]);
-    keyboardHandler.addShortcut([KeyboardHandler.BOTTOM], this.move.proxy(this), [0, normalMove]);
-    keyboardHandler.addShortcut([KeyboardHandler.LEFT, KeyboardHandler.CTRL], this.move.proxy(this), [-tiledMove, 0]);
-    keyboardHandler.addShortcut([KeyboardHandler.RIGHT, KeyboardHandler.CTRL], this.move.proxy(this), [tiledMove, 0]);
-    keyboardHandler.addShortcut([KeyboardHandler.TOP, KeyboardHandler.CTRL], this.move.proxy(this), [0, -tiledMove]);
-    keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.RIGHT], this.move.proxy(this), [normalMove, 0]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.TOP], this.move.proxy(this), [0, -normalMove]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.BOTTOM], this.move.proxy(this), [0, normalMove]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.LEFT, KeyboardHandler.CTRL], this.move.proxy(this), [-tiledMove, 0]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.RIGHT, KeyboardHandler.CTRL], this.move.proxy(this), [tiledMove, 0]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.TOP, KeyboardHandler.CTRL], this.move.proxy(this), [0, -tiledMove]);
+    this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
 }
 
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
+        var treeEditor = this.treeEditor;
+        var ref = this;
         this.deselect();
-        last_block = pElement.element.getAttribute("id");
+        treeEditor.last_block = pElement.element.getAttribute("id");
         pElement.element.classList.add(PropertiesEditor.CLASS);
 
         var editable_props = pElement.getEditableProperties();
@@ -1038,7 +981,7 @@ Class.define(PropertiesEditor, [], {
                             var t = e.currentTarget;
                             var remove = t.getAttribute("data-remove");
                             pElement.removeLink(remove);
-                            propertiesEditor.edit(pElement);
+                            ref.edit(pElement);
                         }, false);
                     }
                     break;
@@ -1048,12 +991,12 @@ Class.define(PropertiesEditor, [], {
         var ignore = [pElement.element.getAttribute("id")].concat(pElement.getLinkedBlocks());
         var has_options = false;
         var further_blocks = {};
-        for(i in dispatchers)
+        for(i in treeEditor.dispatchers)
         {
-            if(!dispatchers.hasOwnProperty(i)||!dispatchers[i].element.querySelector("text")||ignore.indexOf(i)>-1)
+            if(!treeEditor.dispatchers.hasOwnProperty(i)||!treeEditor.dispatchers[i].element.querySelector("text")||ignore.indexOf(i)>-1)
                 continue;
 
-            further_blocks[dispatchers[i].element.getAttribute("id")] = dispatchers[i].element.querySelector("text").innerHTML;
+            further_blocks[treeEditor.dispatchers[i].element.getAttribute("id")] = treeEditor.dispatchers[i].element.querySelector("text").innerHTML;
             has_options = true;
         }
 
@@ -1077,7 +1020,7 @@ Class.define(PropertiesEditor, [], {
             button.addEventListener("click", function(e){
                 var t = e.currentTarget;
                 var selectedValue = t.parentNode.querySelector("select").value;
-                Link.create(pElement.element.getAttribute("id"), selectedValue);
+                treeEditor.createLink(pElement.element.getAttribute("id"), selectedValue);
                 pElement.select();
             }, false);
         }
@@ -1087,15 +1030,15 @@ Class.define(PropertiesEditor, [], {
         Element.create("span", {"class":"material-icons", "innerHTML":"&#xE145;"}, input);
         Element.create("span", {"innerHTML":"Ajouter un block"}, input);
         input.addEventListener("click", function(){
-            DragSelector.deselectAll();
-            Block.create();
+            treeEditor.deselectAll();
+            treeEditor.createBlock();
         }, false);
         input = Element.create("button", {"class":"delete"}, inp_ct);
         Element.create("span", {"class":"material-icons", "innerHTML":"&#xE872;"}, input);
         Element.create("span", {"innerHTML":"Supprimer le block"}, input);
         input.addEventListener("click", function(e){
+            ref.deselect();
             pElement.remove();
-            propertiesEditor.deselect();
         }, false);
     },
     deselect:function()
@@ -1106,17 +1049,17 @@ Class.define(PropertiesEditor, [], {
     },
     move:function(pVector)
     {
-        if(Context.isFrozen()||!pVector||pVector.length!=2)
+        if(this.treeEditor.isFrozen()||!pVector||pVector.length!=2)
             return;
 
-        for(var i in dispatchers)
+        for(var i in this.treeEditor.dispatchers)
         {
-            if(!dispatchers.hasOwnProperty(i))
+            if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                 continue;
 
-            if(DragSelector.isSelected(dispatchers[i]))
+            if(DragSelector.isSelected(this.treeEditor.dispatchers[i]))
             {
-                dispatchers[i].move(pVector[0], pVector[1]);
+                this.treeEditor.dispatchers[i].move(pVector[0], pVector[1]);
             }
         }
     }
@@ -1124,19 +1067,21 @@ Class.define(PropertiesEditor, [], {
 
 PropertiesEditor.CLASS = "edit";
 
-function DragSelector()
+function DragSelector(pTreeEditor)
 {
-    keyboardHandler.addShortcut([KeyboardHandler.ESC], DragSelector.deselectAll);
+    this.treeEditor = pTreeEditor;
+    this.svg = pTreeEditor.svg;
+    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.treeEditor.deselectAll);
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
-    svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
+    this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
 }
 
 Class.define(DragSelector, [], {
     mousedownHandler:function(e)
     {
         var id = e.target.getAttribute("id")|| e.target.parentNode.getAttribute("id");
-        var parentD = dispatchers[id];
+        var parentD = this.treeEditor.dispatchers[id];
 
         if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize") || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
             return;
@@ -1145,17 +1090,17 @@ Class.define(DragSelector, [], {
         e.stopPropagation();
         e.preventDefault();
 
-        var c = Context.getScroll();
+        var c = this.treeEditor.getScroll();
         this.startPosition = {x: e.clientX, y: e.clientY};
 
         if(parentD&&DragSelector.isSelected(parentD))
         {
             var b;
-            for(var i in dispatchers)
+            for(var i in this.treeEditor.dispatchers)
             {
-                if(!dispatchers.hasOwnProperty(i))
+                if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                     continue;
-                b = dispatchers[i];
+                b = this.treeEditor.dispatchers[i];
 
                 if(!DragSelector.isSelected(b))
                     continue;
@@ -1165,10 +1110,10 @@ Class.define(DragSelector, [], {
         }
         else
         {
-            propertiesEditor.deselect();
+            this.treeEditor.propertiesEditor.deselect();
             document.addEventListener("mouseup", this._selectUpHandler, false);
             document.addEventListener("mousemove", this._selectMoveHandler, false);
-            this.rect = SVGElement.create("rect", {"class":"selector", "x":(c.x+ e.clientX), "y":(c.y+ e.clientY)}, svg);
+            this.rect = SVGElement.create("rect", {"class":"selector", "x":(c.x+ e.clientX), "y":(c.y+ e.clientY)}, this.svg);
         }
     },
     selectMoveHandler:function(e)
@@ -1196,11 +1141,11 @@ Class.define(DragSelector, [], {
         });
 
         var b;
-        for(var i in dispatchers)
+        for(var i in this.treeEditor.dispatchers)
         {
-            if(!dispatchers.hasOwnProperty(i))
+            if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                 continue;
-            b = dispatchers[i];
+            b = this.treeEditor.dispatchers[i];
             if(b.checkOverlap(rectangle))
                 DragSelector.select(b);
             else
@@ -1211,7 +1156,7 @@ Class.define(DragSelector, [], {
     {
         document.removeEventListener("mouseup", this._selectUpHandler, false);
         document.removeEventListener("mousemove", this._selectMoveHandler, false);
-        svg.removeChild(this.rect);
+        this.svg.removeChild(this.rect);
     }
 });
 
@@ -1228,13 +1173,6 @@ DragSelector.deselect = function(pDraggable)
 {
     pDraggable.element.removeAttribute(DragSelector.ATTRIBUTE);
 };
-DragSelector.deselectAll = function()
-{
-    svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){
-        pElement.removeAttribute(DragSelector.ATTRIBUTE);
-    });
-};
-
 
 function KeyboardHandler()
 {
@@ -1295,29 +1233,99 @@ KeyboardHandler.TAB = 9;
 KeyboardHandler.CTRL = 17;
 KeyboardHandler.SHIFT = 20;
 
-(function(){
+function TreeEditor(pContainer)
+{
+    this.removeAllEventListener();
+    console.log(pContainer);
+    this.container = document.querySelector(pContainer);
+    this.dispatchers = {};
+    this.links = {};
+    this.last_block = "";
+    this.svg = this.container.querySelector("svg");
+    var ref = this;
+    this.svg.querySelectorAll('*[data-role="block"]').forEach(function(pElement){
+        ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
+        ref.last_block = pElement.getAttribute("id");
+    });
+    this.svg.querySelectorAll('*[data-role="anchor"]').forEach(function(pElement){
+        ref.dispatchers[pElement.getAttribute("id")] = new Draggable(pElement, ref);
+    });
 
-    function init()
+    //this.svg.querySelectorAll('line.link').forEach(function(pElement){
+    //    new Link(pElement, null, tree);
+    //});
+    this.keyboardHandler = new KeyboardHandler();
+
+    this.propertiesEditor = new PropertiesEditor(this.container.querySelector(".properties_editor"), this);
+
+    new DragSelector(this);
+}
+
+Class.define(TreeEditor, [EventDispatcher],
+{
+    createLink:function(pFirstBlock, pSecondBlock)
     {
-        svg = document.querySelector("svg");
-        svg.querySelectorAll('*[data-role="block"]').forEach(function(pElement){
-            dispatchers[pElement.getAttribute("id")] = new Block(pElement);
-            last_block = pElement.getAttribute("id");
-        });
-        svg.querySelectorAll('*[data-role="anchor"]').forEach(function(pElement){
-            dispatchers[pElement.getAttribute("id")] = new Draggable(pElement);
+        return new Link(pFirstBlock, pSecondBlock, this);
+    },
+    createBlock:function()
+    {
+        var scroll = this.getScroll();
+        var dimensions = {width:200, height:75};
+        var previous = this.dispatchers[this.last_block];
+
+        var selector = 'g[data-role="block"]:last-of-type';
+        var index = (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
+        var g = SVGElement.create("g", {
+            "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
+            "id":GROUP_BASE_ID+index,
+            "data-role":"block",
+            "data-type":"diagnostic"
         });
 
-        svg.querySelectorAll('line.link').forEach(function(pElement){
-            new Link(pElement);
+        var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
+        var text = SVGElement.create("text", {"x":"10", "y":"25", "innerHTML":type_list.diagnostic}, g);
+
+        this.svg.appendChild(g);
+
+        this.dispatchers[g.getAttribute("id")] = new Block(g, this);
+
+        this.createLink(this.last_block, g.getAttribute("id"));
+
+        this.dispatchers[g.getAttribute("id")].select();
+    },
+    getScroll:function()
+    {
+        var scroll = {x:0, y:0};
+        var p = this.svg;
+        while(p)
+        {
+            scroll.x += p.scrollLeft||0;
+            scroll.y += p.scrollTop||0;
+            p = p.parentNode;
+        }
+        return scroll;
+    },
+    toggleFrozenStatus:function()
+    {
+        this.svg.classList.toggle("frozen");
+        document.querySelector("#toggle_ui .label").innerHTML = (this.svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
+        document.querySelector("#toggle_ui .material-icons").innerHTML = (this.svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
+    },
+    isFrozen:function()
+    {
+        return this.svg.classList.contains("frozen");
+    },
+    deselectAll:function()
+    {
+        this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){
+            pElement.removeAttribute(DragSelector.ATTRIBUTE);
         });
-        keyboardHandler = new KeyboardHandler();
-
-        propertiesEditor = new PropertiesEditor(document.querySelector(".properties_editor"));
-
-        var s = new DragSelector();
     }
+});
 
-    NodeList.prototype.forEach = Array.prototype.forEach;
-    window.addEventListener("DOMContentLoaded", init, false);
-})();
+TreeEditor.create = function(pSelector)
+{
+    return new TreeEditor(pSelector);
+};
+
+NodeList.prototype.forEach = Array.prototype.forEach;
