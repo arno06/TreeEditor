@@ -1236,7 +1236,6 @@ KeyboardHandler.SHIFT = 20;
 function TreeEditor(pContainer)
 {
     this.removeAllEventListener();
-    console.log(pContainer);
     this.container = document.querySelector(pContainer);
     this.dispatchers = {};
     this.links = {};
