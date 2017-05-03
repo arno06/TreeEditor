@@ -1247,16 +1247,12 @@ function TreeEditor(pContainer)
         ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
         ref.last_block = pElement.getAttribute("id");
     });
-    this.svg.querySelectorAll('*[data-role="anchor"]').forEach(function(pElement){
-        ref.dispatchers[pElement.getAttribute("id")] = new Draggable(pElement, ref);
-    });
-
-    //this.svg.querySelectorAll('line.link').forEach(function(pElement){
-    //    new Link(pElement, null, tree);
-    //});
     this.keyboardHandler = new KeyboardHandler();
 
-    this.propertiesEditor = new PropertiesEditor(this.container.querySelector(".properties_editor"), this);
+    var propertiesEditor = this.container.querySelector(".properties_editor");
+
+    this.propertiesEditor = new PropertiesEditor(propertiesEditor, this);
+    propertiesEditor.querySelector("#toggle_ui").addEventListener("click", this.toggleFrozenStatus.proxy(this), false);
 
     new DragSelector(this);
 }
@@ -1305,11 +1301,12 @@ Class.define(TreeEditor, [EventDispatcher],
         }
         return scroll;
     },
-    toggleFrozenStatus:function()
+    toggleFrozenStatus:function(e)
     {
+        var t = e.currentTarget;
         this.svg.classList.toggle("frozen");
-        document.querySelector("#toggle_ui .label").innerHTML = (this.svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
-        document.querySelector("#toggle_ui .material-icons").innerHTML = (this.svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
+        t.querySelector(".label").innerHTML = (this.svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
+        t.querySelector(".material-icons").innerHTML = (this.svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
     },
     isFrozen:function()
     {
