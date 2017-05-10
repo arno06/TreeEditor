@@ -369,7 +369,7 @@ function Block(pElement, pTreeEditor)
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
-    this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-25,bottom")];
+    this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-18,bottom")];
     this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
     var ref = this;
     this.element.querySelectorAll('foreignObject *[contenteditable="true"]').forEach(function(pElement)
@@ -853,8 +853,8 @@ ElementCollection.Grade = function(pLabel, pParent)
 {
     var g = SVGElement.create("g", {"data-role":"grade"}, pParent);
     var rect = SVGElement.create("rect", {}, g);
-    var label = SVGElement.create("text", {"innerHTML": pLabel, "y":10}, g);
-    rect.setAttribute("width", label.getBoundingClientRect().width);
+    var label = SVGElement.create("text", {"innerHTML": pLabel, "y":12, "x":2}, g);
+    rect.setAttribute("width", label.getBoundingClientRect().width+4);
     rect.setAttribute("height", label.getBoundingClientRect().height);
     return g;
 };
