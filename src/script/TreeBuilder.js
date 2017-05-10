@@ -57,11 +57,10 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _startDragHandler:function(e)
     {
-        if(this.treeEditor.isFrozen())
+        if(this.treeEditor.isFrozen()
+            || (e.target.getAttribute("contenteditable")&&e.target.getAttribute("contenteditable")=="true"))
             return;
-
         this.relativePointer.x = e.clientX - this.getX();
-        this.relativePointer.y = e.clientY - this.getY();
         this.relativePointer.y = e.clientY - this.getY();
         document.addEventListener("mouseup", this.__dropHandler, false);
         document.addEventListener("mousemove", this.__dragHandler, false);
@@ -368,6 +367,12 @@ function Block(pElement, pTreeEditor)
     this.previous = {};
     this.next = {};
     this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-25,bottom")];
+    this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
+    var ref = this;
+    this.element.querySelectorAll('foreignObject *[contenteditable="true"]').forEach(function(pElement)
+    {
+        pElement.addEventListener("mousedown", ref._editContentHandler, false);
+    });
 }
 
 Class.define(Block,[Resizable], {
@@ -410,11 +415,6 @@ Class.define(Block,[Resizable], {
     getEditableProperties:function()
     {
         var properties = {
-            "title":{
-                "label":"Titre",
-                "type":"text",
-                "value":this.element.querySelector("text").innerHTML.trim()
-            },
             "type": {
                 "label":"Type de block",
                 "type":"select",
@@ -442,7 +442,7 @@ Class.define(Block,[Resizable], {
             if(!this.next.hasOwnProperty(i))
                 continue;
             bl = this.treeEditor.dispatchers[i];
-            next[i] = {"label":bl.element.querySelector("text").innerHTML, "extra":this.next[i]};
+            next[i] = {"label":bl.element.querySelector('foreignObject div[data-name="title"]').innerHTML, "extra":this.next[i]};
             hasNext = true;
         }
         if(hasNext)
@@ -515,6 +515,22 @@ Class.define(Block,[Resizable], {
             linked.push(k);
         }
         return linked;
+    },
+    _sizedUpdatedHandler:function()
+    {
+        var fo = this.element.querySelector("foreignObject");
+        if(!fo)
+            return;
+
+        var rectDimensions = this.getDimensions();
+
+        fo.setAttribute("width", rectDimensions.width - 20);
+        fo.setAttribute("height", rectDimensions.height - 20);
+    },
+    _editContentHandler:function(e)
+    {
+        //Todo : traitement spécifique pour l'édition HTML
+        console.log("Block.editContentHandler : "+e.currentTarget.getAttribute("data-type"));
     }
 });
 
@@ -990,13 +1006,15 @@ Class.define(PropertiesEditor, [], {
 
         var ignore = [pElement.element.getAttribute("id")].concat(pElement.getLinkedBlocks());
         var has_options = false;
-        var further_blocks = {};
+        var further_blocks = {}, title;
         for(i in treeEditor.dispatchers)
         {
-            if(!treeEditor.dispatchers.hasOwnProperty(i)||!treeEditor.dispatchers[i].element.querySelector("text")||ignore.indexOf(i)>-1)
+            if(!treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
                 continue;
-
-            further_blocks[treeEditor.dispatchers[i].element.getAttribute("id")] = treeEditor.dispatchers[i].element.querySelector("text").innerHTML;
+            title = treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="title"]');
+            if(!title)
+                continue;
+            further_blocks[treeEditor.dispatchers[i].element.getAttribute("id")] = title.innerHTML;
             has_options = true;
         }
 
@@ -1071,7 +1089,7 @@ function DragSelector(pTreeEditor)
 {
     this.treeEditor = pTreeEditor;
     this.svg = pTreeEditor.svg;
-    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.treeEditor.deselectAll);
+    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.treeEditor.deselectAll.proxy(this));
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
@@ -1080,15 +1098,26 @@ function DragSelector(pTreeEditor)
 Class.define(DragSelector, [], {
     mousedownHandler:function(e)
     {
-        var id = e.target.getAttribute("id")|| e.target.parentNode.getAttribute("id");
+        var t = e.target;
+        var id = t.getAttribute("id");
+        while(!id&& t.parentNode)
+        {
+            if(t.nodeName.toLowerCase() === "g" && this.treeEditor.dispatchers[t.getAttribute("id")])
+                id = t.getAttribute("id");
+            t = t.parentNode;
+        }
         var parentD = this.treeEditor.dispatchers[id];
 
-        if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize") || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
+        if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize")
+            || (e.target.getAttribute("contenteditable")&&e.target.getAttribute("contenteditable") == "true")
+            || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
             return;
 
         e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();
+
+        window.getSelection().removeAllRanges();
 
         var c = this.treeEditor.getScroll();
         this.startPosition = {x: e.clientX, y: e.clientY};
@@ -1110,6 +1139,7 @@ Class.define(DragSelector, [], {
         }
         else
         {
+            this.treeEditor.deselectAll();
             this.treeEditor.propertiesEditor.deselect();
             document.addEventListener("mouseup", this._selectUpHandler, false);
             document.addEventListener("mousemove", this._selectMoveHandler, false);
@@ -1188,6 +1218,7 @@ Class.define(KeyboardHandler, [EventDispatcher], {
     {
         if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1)
             e.preventDefault();
+        console.log(e.keyCode);
         this.states[e.keyCode] = true;
         this.triggerShortcuts();
     },
@@ -1232,6 +1263,8 @@ KeyboardHandler.BOTTOM = 40;
 KeyboardHandler.TAB = 9;
 KeyboardHandler.CTRL = 17;
 KeyboardHandler.SHIFT = 20;
+KeyboardHandler.C = 67;
+KeyboardHandler.V = 86;
 
 function TreeEditor(pContainer)
 {
@@ -1252,12 +1285,57 @@ function TreeEditor(pContainer)
 
     this.propertiesEditor = new PropertiesEditor(propertiesEditor, this);
     propertiesEditor.querySelector("#toggle_ui").addEventListener("click", this.toggleFrozenStatus.proxy(this), false);
+    this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.V], this.cloneStash.proxy(this));
+    this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.C], this.fillStash.proxy(this));
 
     new DragSelector(this);
 }
 
 Class.define(TreeEditor, [EventDispatcher],
 {
+    suspend:function()
+    {
+        //Todo : implémenter la possibilité de mettre en pause les écoutes sur les évènements
+    },
+    resume:function()
+    {
+        //Todo : implémenter la possibiliter de reprendre les écoutes sur les évènements
+    },
+    getNextBlockIndex:function()
+    {
+        var selector = 'g[data-role="block"]:last-of-type';
+        return (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
+    },
+    fillStash:function()
+    {
+        this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement) {
+            TreeEditor.stash.push(pElement);
+        });
+    },
+    cloneStash:function()
+    {
+        var newSelection = [];
+        var ref = this;
+        var block, newGroup, newBlock, newIndex;
+        TreeEditor.stash.forEach(function(pElement)
+        {
+            block = ref.dispatchers[pElement.getAttribute("id")];
+            newIndex = ref.getNextBlockIndex();
+            newGroup = pElement.cloneNode(true);
+            newGroup.setAttribute("id", GROUP_BASE_ID+newIndex);
+            ref.svg.appendChild(newGroup);
+
+            newBlock = new Block(newGroup, ref);
+            newBlock.setPosition(block.getX()+10, block.getY()+10);
+
+            ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
+            newSelection.push(newBlock);
+        });
+        this.deselectAll();
+        newSelection.forEach(function(pBlock){
+            DragSelector.select(pBlock);
+        });
+    },
     createLink:function(pFirstBlock, pSecondBlock)
     {
         return new Link(pFirstBlock, pSecondBlock, this);
@@ -1268,8 +1346,7 @@ Class.define(TreeEditor, [EventDispatcher],
         var dimensions = {width:200, height:75};
         var previous = this.dispatchers[this.last_block];
 
-        var selector = 'g[data-role="block"]:last-of-type';
-        var index = (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
+        var index = this.getNextBlockIndex();
         var g = SVGElement.create("g", {
             "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
             "id":GROUP_BASE_ID+index,
@@ -1278,7 +1355,12 @@ Class.define(TreeEditor, [EventDispatcher],
         });
 
         var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-        var text = SVGElement.create("text", {"x":"10", "y":"25", "innerHTML":type_list.diagnostic}, g);
+
+        var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
+
+        var cache = Element.create("div", {"class":"cache"}, fo);
+        Element.create("div", {"data-name":"title", "data-type":"string", "contenteditable":"true", "innerHTML":"Editer le titre"}, cache);
+        Element.create("div", {"data-name":"description", "data-type":"html", "contenteditable":"true", "innerHTML":"Editer la description"}, cache);
 
         this.svg.appendChild(g);
 
@@ -1323,5 +1405,7 @@ TreeEditor.create = function(pSelector)
 {
     return new TreeEditor(pSelector);
 };
+
+TreeEditor.stash = [];
 
 NodeList.prototype.forEach = Array.prototype.forEach;

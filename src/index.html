@@ -6,82 +6,12 @@
         </title>
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
         <link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
+        <link href="css/TreeEditor.css" rel="stylesheet">
         <script src="https://dependencies.arnaud-nicolas.fr/?need=Event"></script>
         <script src="script/TreeBuilder.js"></script>
         <style>
             *{font-family: "Roboto", sans-serif;outline:none;}
-            html, body{
-                height:100%;width:100%;margin:0; padding:0;
-            }
-
-            .builder_container{width:100%;height:100%;}
-
-            .builder_container svg{height:1600px;position:relative;}
-            .builder_container svg *{user-select:none;}
-
-            .builder_container .properties_editor{width:300px;height:100%;background:#f0f0f0;position:fixed;top:0;right:0;}
-
-            svg text{pointer-events: none;}
-
-            svg .draggable rect{cursor: pointer;stroke: rgba(0, 0, 0, 1);stroke-width: 2px;}
-
-            svg g[data-type="diagnostic"]{fill:#ffce22;}
-            svg g[data-type="reflexion"]{fill:#fff;}
-            svg g[data-type="treatment"]{fill:#e0ffc0;}
-
-            svg g text{fill:#000;}
-
-            svg g.grade{}
-            svg g[data-role="grades"] g[data-role="grade"] rect{fill:#d20000;stroke-width: 0;}
-            svg g[data-role="grades"] g[data-role="grade"] text{fill:#fff;font-size:13px;}
-            svg g[data-role="notes"] g[data-role="note"] circle{fill:#60a0ff;stroke-width: 0;}
-            svg g[data-role="notes"] g[data-role="note"] text{fill:#fff;font-size:13px;}
-
-            svg g path[data-role="resize"]{cursor:nwse-resize;}
-
-            svg .draggable:hover rect{stroke-width: 2px;stroke: rgb(58, 164, 218);}
-
-            svg .draggable[data-dragdrafted="true"] rect{stroke: rgb(51, 153, 255);}
-            svg circle.draggable[data-dragdrafted="true"]{stroke-width:1px;stroke: rgb(51, 153, 255);}
-
-            svg .draggable.edit rect{stroke: rgb(99, 218, 101);}
-
-            svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
-            svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
-
-            svg line.link{stroke:black;stroke-width:2px;}
-
-            svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stroke-width: 1px;}
-
-            .properties_editor{box-shadow:0 0 3px rgba(0, 0, 0, .3);}
-
-            .properties_editor .actions{text-align: center;}
-
-            .properties_editor .actions button, .properties_editor .properties .add_link_handler button{ display:inline-block;padding:7px 7px 7px 0;margin:5px auto 0;background:#217ebd;border:none;color:#fff;border-radius:3px;cursor:pointer;}
-            .properties_editor .actions button.delete{background: #e51926;margin-left:5px;}
-            .properties_editor .actions span{vertical-align: middle;}
-            .properties_editor .actions button:disabled, .properties_editor .properties .add_link_handler button:disabled{ background: #7faebd;color: #ececec;pointer-events: none;}
-
-            .properties_editor .properties{margin-bottom:15px;}
-
-            .properties_editor .properties .inp_container{padding:15px;border-bottom:solid 1px #ddd;}
-            .properties_editor .properties .inp_container label{display:block;}
-            .properties_editor .properties .inp_container input[type="text"]{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;}
-            .properties_editor .properties .inp_container input[type="text"]:focus{border-color:#666;}
-            .properties_editor .properties .inp_container select{width:100%;padding:5px;}
-            .properties_editor .properties .inp_container select option{padding:5px;}
-            .properties_editor .properties .inp_container select option[value="diagnostic"]{background:#ffce22;}
-            .properties_editor .properties .inp_container select option[value="reflexion"]{background:#fff;}
-            .properties_editor .properties .inp_container select option[value="treatment"]{background:#e0ffc0;}
-            .properties_editor .properties .add_link_handler{padding:15px;border-bottom:solid 1px #ddd;}
-            .properties_editor .properties .add_link_handler label{display:block;}
-            .properties_editor .properties .add_link_handler select{padding:7px;width:calc(100% - 58px);}
-            .properties_editor .properties .add_link_handler button{display:inline-block;width:58px;text-align: center;}
-
-            .properties_editor .properties ul{padding:0;margin:0;list-style:none;}
-            .properties_editor .properties ul li{padding:5px;}
-            .properties_editor .properties ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
-            .properties_editor .properties ul li span[data-remove]:hover{transform:rotate(90deg);}
+            html, body{height:100%;width:100%;margin:0; padding:0;}
         </style>
     </head>
     <body>
@@ -94,7 +24,12 @@
             </defs>
             <g id="group-1" transform="translate(400,30)" data-role="block" data-type="diagnostic">
                 <rect width="200" height="75"></rect>
-                <text x="10" y="25">D&eacute;marche diagnostique</text>
+                <foreignObject x="10" y="10" width="180" height="55">
+                    <div class="cache">
+                        <div data-name="title" data-type="text" contenteditable="true">Editer le titre</div>
+                        <div data-name="description" data-type="html" contenteditable="true">Editer la description</div>
+                    </div>
+                </foreignObject>
             </g>
         </svg>
         <div class="properties_editor">
