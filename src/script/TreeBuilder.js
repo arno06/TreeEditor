@@ -254,7 +254,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     checkOverlap:function(pRect)
     {
-        if(this.options.restraintTo)
+        if(!this.isSelectable())
             return;
 
         var c = this.treeEditor.getScroll();
@@ -270,6 +270,10 @@ Class.define(Draggable, [EventDispatcher], {
         var bottom2 = pRect.y+pRect.height;
 
         return (left1<right2 && left2<right1 && top1<bottom2 && top2 < bottom1);
+    },
+    isSelectable:function()
+    {
+        return !this.options.restraintTo;
     }
 });
 
@@ -1092,7 +1096,8 @@ function DragSelector(pTreeEditor)
 {
     this.treeEditor = pTreeEditor;
     this.svg = pTreeEditor.svg;
-    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.treeEditor.deselectAll.proxy(this));
+    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselectAll.proxy(this));
+    pTreeEditor.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.A], this.selectAll.proxy(this));
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
@@ -1195,6 +1200,24 @@ Class.define(DragSelector, [], {
     selectedElements:function()
     {
         return this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]');
+    },
+    deselectAll:function()
+    {
+        this.selectedElements().forEach(function(pElement){
+            pElement.removeAttribute(DragSelector.ATTRIBUTE);
+        });
+    },
+    selectAll:function()
+    {
+        var b;
+        for(var i in this.treeEditor.dispatchers)
+        {
+            if (!this.treeEditor.dispatchers.hasOwnProperty(i))
+                continue;
+            b = this.treeEditor.dispatchers[i];
+            if(b.isSelectable())
+                DragSelector.select(b);
+        }
     }
 });
 
@@ -1284,6 +1307,7 @@ KeyboardHandler.CTRL = 17;
 KeyboardHandler.SHIFT = 20;
 KeyboardHandler.C = 67;
 KeyboardHandler.V = 86;
+KeyboardHandler.A = 65;
 
 function TreeEditor(pContainer)
 {
@@ -1425,9 +1449,7 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     deselectAll:function()
     {
-        this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){
-            pElement.removeAttribute(DragSelector.ATTRIBUTE);
-        });
+        this.selector.deselectAll();
     }
 });
 
