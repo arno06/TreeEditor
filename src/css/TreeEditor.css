@@ -39,7 +39,7 @@ svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
 svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 svg.frozen foreignObject div.cache{overflow:hidden;}
 
-svg line.link{stroke:black;stroke-width:2px;}
+svg line.segment{stroke:black;stroke-width:2px;}
 
 svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stroke-width: 1px;}
 

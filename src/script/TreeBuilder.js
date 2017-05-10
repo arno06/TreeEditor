@@ -557,7 +557,9 @@ function Anchor(pId, pPosition, pTreeEditor)
             opt['data-draggable'] = pPosition;
     }
     this.id = pId;
-    this.element = SVGElement.create("circle", opt, pTreeEditor.svg);
+    this.element = pTreeEditor.svg.querySelector("#"+pId);
+    if(!this.element)
+        this.element = SVGElement.create("circle", opt, pTreeEditor.svg);
     this._setupDraggable(this.element, pTreeEditor);
     if(pPosition && pPosition.indexOf("restraintTo:")!==0)
     {
@@ -601,20 +603,24 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTr
     this.idAnchor1 = pIdAnchor1||ANCHOR_BASE_ID+index;
     this.idAnchor2 = pIdAnchor2||ANCHOR_BASE_ID+(index+1);
 
-    if(!pIdAnchor1)
+    if(!pIdAnchor1||!this.treeEditor.dispatchers[this.idAnchor1])
         this.treeEditor.dispatchers[this.idAnchor1] = new Anchor(this.idAnchor1, pPositionAnchor1, this.treeEditor);
     else
         this.treeEditor.dispatchers[this.idAnchor1].share();
-    if(!pIdAnchor2)
+    if(!pIdAnchor2||!this.treeEditor.dispatchers[this.idAnchor2])
         this.treeEditor.dispatchers[this.idAnchor2] = new Anchor(this.idAnchor2, pPositionAnchor2, this.treeEditor);
     else
         this.treeEditor.dispatchers[this.idAnchor2].share();
 
     this.id = SEGMENT_BASE_ID+this.idAnchor1+"_"+this.idAnchor2;
-    this.element = SVGElement.create("line",{
-        "id":this.id,
-        "class":"link"
-    }, this.svg, this.svg.querySelector("circle.anchor.draggable"));
+    this.element = this.svg.querySelector("#"+this.id);
+    if(!this.element)
+    {
+        this.element = SVGElement.create("line",{
+            "id":this.id,
+            "class":"segment"
+        }, this.svg, this.svg.querySelector("circle.anchor.draggable"));
+    }
 
     if(pPositionAnchor2&&pPositionAnchor2.indexOf("restraintTo:")===0)
     {
@@ -699,7 +705,7 @@ Class.define(Segment, [EventDispatcher], {
     }
 });
 
-function Link(pFirstBlock ,pSecondBlock, pTreeEditor)
+function Link(pFirstBlock ,pSecondBlock, pTreeEditor, pSegments)
 {
     this.treeEditor = pTreeEditor;
     this.id = LINK_BASE_ID+pFirstBlock+"_"+pSecondBlock;
@@ -710,7 +716,10 @@ function Link(pFirstBlock ,pSecondBlock, pTreeEditor)
     this.secondBlock = pSecondBlock;
     this._removeHandler = this.remove.proxy(this);
     this.segments = [];
-    this.addSegment(null, null, "restraintTo:"+this.firstBlock+",50%,bottom", "restraintTo:"+this.secondBlock+",50%,top");
+    if(pSegments)
+        this.setSegments(pSegments);
+    else
+        this.addSegment(null, null, "restraintTo:"+this.firstBlock+",50%,bottom", "restraintTo:"+this.secondBlock+",50%,top");
 }
 
 Class.define(Link, [], {
@@ -772,6 +781,17 @@ Class.define(Link, [], {
         s.addEventListener(InteractiveEvent.SPLIT, this.splitSegment.proxy(this), false);
         this.segments.push(s);
         return s;
+    },
+    setSegments:function(pSegments)
+    {
+        var s;
+        for(var i = 0, max = pSegments.length; i<max; i++)
+        {
+            s = pSegments[i];
+            s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
+            s.addEventListener(InteractiveEvent.SPLIT, this.splitSegment.proxy(this), false);
+            this.segments.push(s);
+        }
     }
 });
 
@@ -1325,11 +1345,7 @@ function TreeEditor(pContainer)
     this.links = {};
     this.last_block = "";
     this.svg = this.container.querySelector("svg");
-    var ref = this;
-    this.svg.querySelectorAll('*[data-role="block"]').forEach(function(pElement){
-        ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
-        ref.last_block = pElement.getAttribute("id");
-    });
+    this.initTree();
     this.keyboardHandler = new KeyboardHandler();
 
     var propertiesEditor = this.container.querySelector(".properties_editor");
@@ -1345,6 +1361,77 @@ function TreeEditor(pContainer)
 
 Class.define(TreeEditor, [EventDispatcher],
 {
+    initTree:function()
+    {
+        var ref = this;
+        this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
+            ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
+            ref.last_block = pElement.getAttribute("id");
+        });
+
+        var s = {};
+        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
+        {
+            var id = pElement.getAttribute("id");
+            var anchors_id = id.split("_");
+            var anchor1 = anchors_id[1];
+            var anchor2 = anchors_id[2];
+
+            var el1 = ref.svg.querySelector("#"+anchor1);
+            var el2 = ref.svg.querySelector("#"+anchor2);
+
+            var seg;
+
+            if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
+            {
+                var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                seg = {
+                    "blocks":[block1],
+                    "segments":[[anchor1, anchor2]]
+                };
+            }
+            else
+            {
+                seg = s[anchor1];
+                seg.segments.push([anchor1, anchor2]);
+                //anchor1 shared
+            }
+
+            if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
+            {
+                var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                seg.blocks.push(block2);
+                s[anchor1] = seg;
+            }
+            else
+            {
+                //anchor2 shared
+                s[anchor2] = seg;
+                delete s[anchor1];
+            }
+        });
+
+        var link_obj, k, segment_arr, segments, maxk;
+        for(var i in s)
+        {
+            if(!s.hasOwnProperty(i))
+                continue;
+            link_obj = s[i];
+            if(link_obj.blocks.length !== 2)
+                continue;
+
+            segments = [];
+            for(k = 0, maxk = link_obj.segments.length; k<maxk; k++)
+            {
+                segment_arr = link_obj.segments[k];
+                segments.push(new Segment(segment_arr[0], segment_arr[1], null,null, this));
+            }
+
+            if(segments.length === 0)
+                continue;
+            new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
+        }
+    },
     suspend:function()
     {
         //Todo : implémenter la possibilité de mettre en pause les écoutes sur les évènements
