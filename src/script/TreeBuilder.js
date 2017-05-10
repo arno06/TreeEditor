@@ -178,7 +178,8 @@ Class.define(Draggable, [EventDispatcher], {
     },
     move:function(pVectorX, pVectorY)
     {
-        this.setPosition(this.getX()+pVectorX, this.getY()+pVectorY);
+        var c = this.treeEditor.getScroll();
+        this.setPosition((c.x + this.getX())+pVectorX, (c.y + this.getY())+pVectorY);
     },
     getStringPosition:function()
     {
@@ -256,10 +257,12 @@ Class.define(Draggable, [EventDispatcher], {
         if(this.options.restraintTo)
             return;
 
-        var left1 = this.getX();
-        var right1 = this.getX()+this.getWidth();
-        var top1 = this.getY();
-        var bottom1 = this.getY()+this.getHeight();
+        var c = this.treeEditor.getScroll();
+
+        var left1 = (c.x + this.getX());
+        var right1 = (c.x + this.getX())+this.getWidth();
+        var top1 = (c.y + this.getY());
+        var bottom1 = (c.y + this.getY())+this.getHeight();
 
         var left2 = pRect.x;
         var right2 = pRect.x+pRect.width;
@@ -1120,7 +1123,7 @@ Class.define(DragSelector, [], {
         window.getSelection().removeAllRanges();
 
         var c = this.treeEditor.getScroll();
-        this.startPosition = {x: e.clientX, y: e.clientY};
+        this.startPosition = {x: c.x + e.clientX, y: c.y + e.clientY};
 
         if(parentD&&DragSelector.isSelected(parentD))
         {
@@ -1148,8 +1151,9 @@ Class.define(DragSelector, [], {
     },
     selectMoveHandler:function(e)
     {
-        var width = e.clientX - this.startPosition.x;
-        var height = e.clientY - this.startPosition.y;
+        var c = this.treeEditor.getScroll();
+        var width = (c.x + e.clientX) - this.startPosition.x;
+        var height = (c.y + e.clientY) - this.startPosition.y;
 
         if(width<0)
         {
@@ -1187,6 +1191,10 @@ Class.define(DragSelector, [], {
         document.removeEventListener("mouseup", this._selectUpHandler, false);
         document.removeEventListener("mousemove", this._selectMoveHandler, false);
         this.svg.removeChild(this.rect);
+    },
+    selectedElements:function()
+    {
+        return this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]');
     }
 });
 
@@ -1218,7 +1226,6 @@ Class.define(KeyboardHandler, [EventDispatcher], {
     {
         if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1)
             e.preventDefault();
-        console.log(e.keyCode);
         this.states[e.keyCode] = true;
         this.triggerShortcuts();
     },
@@ -1231,6 +1238,17 @@ Class.define(KeyboardHandler, [EventDispatcher], {
     addShortcut:function(pKeys, pHandler, pParameters)
     {
         this.shortcuts.push({keys:pKeys, handler:pHandler, parameters:pParameters});
+    },
+    trigger:function(pKeys)
+    {
+        var ref = this;
+        var t = ref.states;
+        ref.states = {};
+        pKeys.forEach(function(pValue){
+            ref.states[pValue] = true;
+        });
+        this.triggerShortcuts();
+        ref.states = t;
     },
     triggerShortcuts:function()
     {
@@ -1256,6 +1274,7 @@ Class.define(KeyboardHandler, [EventDispatcher], {
 });
 
 KeyboardHandler.ESC = 27;
+KeyboardHandler.DELETE = 46;
 KeyboardHandler.LEFT = 37;
 KeyboardHandler.RIGHT = 39;
 KeyboardHandler.TOP = 38;
@@ -1287,8 +1306,9 @@ function TreeEditor(pContainer)
     propertiesEditor.querySelector("#toggle_ui").addEventListener("click", this.toggleFrozenStatus.proxy(this), false);
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.V], this.cloneStash.proxy(this));
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.C], this.fillStash.proxy(this));
+    this.keyboardHandler.addShortcut([KeyboardHandler.DELETE], this.deleteBlocks.proxy(this));
 
-    new DragSelector(this);
+    this.selector = new DragSelector(this);
 }
 
 Class.define(TreeEditor, [EventDispatcher],
@@ -1301,6 +1321,13 @@ Class.define(TreeEditor, [EventDispatcher],
     {
         //Todo : implémenter la possibiliter de reprendre les écoutes sur les évènements
     },
+    deleteBlocks:function()
+    {
+        var ref = this;
+        this.selector.selectedElements().forEach(function(pElement){
+            ref.dispatchers[pElement.getAttribute("id")].remove();
+        });
+    },
     getNextBlockIndex:function()
     {
         var selector = 'g[data-role="block"]:last-of-type';
@@ -1308,7 +1335,8 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     fillStash:function()
     {
-        this.svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement) {
+        TreeEditor.stash = [];
+        this.selector.selectedElements().forEach(function(pElement) {
             TreeEditor.stash.push(pElement);
         });
     },
@@ -1326,12 +1354,14 @@ Class.define(TreeEditor, [EventDispatcher],
             ref.svg.appendChild(newGroup);
 
             newBlock = new Block(newGroup, ref);
-            newBlock.setPosition(block.getX()+10, block.getY()+10);
+
+            if(block)
+                newBlock.setPosition(block.getX()+10, block.getY()+10);
 
             ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
             newSelection.push(newBlock);
         });
-        this.deselectAll();
+        this.keyboardHandler.trigger([KeyboardHandler.ESC]);
         newSelection.forEach(function(pBlock){
             DragSelector.select(pBlock);
         });
