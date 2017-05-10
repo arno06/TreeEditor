@@ -296,7 +296,8 @@ Class.define(Resizable, [Draggable], {
         pElement.addEventListener("mousedown", this._downHandler.proxy(this), false);
 
         this._setupDraggable(pElement, pTreeEditor);
-        SVGElement.create("path", {"d":"M10,0 L10,10 L0,10 Z", "transform":"translate("+(this.getWidth()-15)+", "+(this.getHeight()-15)+")", "fill":"#000", "data-role":"resize"}, this.element);
+        if(!this.element.querySelector('path[data-role="resize"]'))
+            SVGElement.create("path", {"d":"M10,0 L10,10 L0,10 Z", "transform":"translate("+(this.getWidth()-15)+", "+(this.getHeight()-15)+")", "fill":"#000", "data-role":"resize"}, this.element);
     },
     _downHandler:function(e)
     {
@@ -776,10 +777,17 @@ Class.define(Link, [], {
 
 function ElementCollection(pType, pParentBlock, pParentAlign)
 {
-    this.groupElement = SVGElement.create("g", {"data-role":pType}, pParentBlock.element);
+    this.groupElement = pParentBlock.element.querySelector('g[data-role="'+pType+'"]');
+    if(!this.groupElement)
+        this.groupElement = SVGElement.create("g", {"data-role":pType}, pParentBlock.element);
     this.parentBlock = pParentBlock;
     this.parentAlign = pParentAlign;
     this.elements = [];
+    var ref = this;
+    this.groupElement.querySelectorAll("g").forEach(function(pElement)
+    {
+        ref.elements.push(pElement);
+    });
     this.updatePosition();
     this._updatePosition = this.updatePosition.proxy(this);
     this.parentBlock.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePosition);
