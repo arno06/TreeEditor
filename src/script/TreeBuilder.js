@@ -1389,7 +1389,7 @@ Class.define(TreeEditor, [EventDispatcher],
         var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
 
         var cache = Element.create("div", {"class":"cache"}, fo);
-        Element.create("div", {"data-name":"title", "data-type":"string", "contenteditable":"true", "innerHTML":"Editer le titre"}, cache);
+        Element.create("div", {"data-name":"title", "data-type":"string", "contenteditable":"true", "innerHTML":"Titre "+index}, cache);
         Element.create("div", {"data-name":"description", "data-type":"html", "contenteditable":"true", "innerHTML":"Editer la description"}, cache);
 
         this.svg.appendChild(g);
