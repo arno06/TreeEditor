@@ -55,8 +55,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _startDragHandler:function(e)
     {
-        if(this.treeEditor.isFrozen()
-            || (e.target.getAttribute("contenteditable")&&e.target.getAttribute("contenteditable")=="true"))
+        if(this.treeEditor.contentMode())
             return;
         this.relativePointer.x = e.clientX - this.getX();
         this.relativePointer.y = e.clientY - this.getY();
@@ -299,7 +298,7 @@ Class.define(Resizable, [Draggable], {
     },
     _downHandler:function(e)
     {
-        if(this.treeEditor.isFrozen())
+        if(this.treeEditor.contentMode())
             return;
 
         var t = e.target;
@@ -374,11 +373,6 @@ function Block(pElement, pTreeEditor)
     this.next = {};
     this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-18,bottom")];
     this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
-    var ref = this;
-    this.element.querySelectorAll('foreignObject *[contenteditable="true"]').forEach(function(pElement)
-    {
-        pElement.addEventListener("mousedown", ref._editContentHandler, false);
-    });
 }
 
 Class.define(Block,[Resizable], {
@@ -390,6 +384,11 @@ Class.define(Block,[Resizable], {
     {
         switch(pName)
         {
+            case "title":
+            case "description":
+                pValue = pValue.replace(/\n/g, "<br/>");
+                this.element.querySelector('foreignObject div[data-name="'+pName+'"]').innerHTML = pValue;
+                break;
             case "type":
                 this.element.setAttribute("data-type", pValue);
                 break;
@@ -426,8 +425,21 @@ Class.define(Block,[Resizable], {
     getEditableProperties:function()
     {
         var properties = {
+            "title":{
+                "label":"Titre du block",
+                "type":"text",
+                "mode":[TreeEditor.CONTENT_MODE],
+                "value":this.element.querySelector('foreignObject div[data-name="title"]').textContent
+            },
+            "description": {
+                "label":"Description",
+                "type":"html",
+                "mode":[TreeEditor.CONTENT_MODE],
+                "value":this.element.querySelector('foreignObject div[data-name="description"]').textContent
+            },
             "type": {
                 "label":"Type de block",
+                "mode":[TreeEditor.DESIGN_MODE],
                 "type":"select",
                 "data":type_list,
                 "value":this.element.getAttribute("data-type")
@@ -454,6 +466,7 @@ Class.define(Block,[Resizable], {
             {
                 properties[coll.name] = {
                     "label":coll.labelList+(max>1?"s":""),
+                    "mode":[TreeEditor.CONTENT_MODE],
                     "type":"list",
                     "data":dList
                 };
@@ -477,6 +490,7 @@ Class.define(Block,[Resizable], {
             {
                 properties["add_"+coll.name] = {
                     "label":coll.labelAdd,
+                    "mode":[TreeEditor.CONTENT_MODE],
                     "type":"select",
                     "data":addList
                 };
@@ -503,6 +517,7 @@ Class.define(Block,[Resizable], {
         {
             properties.next = {
                 "label":"Liens sortants",
+                "mode":[TreeEditor.DESIGN_MODE],
                 "type":"list",
                 "data":next
             };
@@ -526,6 +541,7 @@ Class.define(Block,[Resizable], {
         {
             properties.newLink = {
                 "label":"Ajouter un lien vers",
+                "mode":[TreeEditor.DESIGN_MODE],
                 "type":"select",
                 "data":further_blocks
             };
@@ -612,11 +628,6 @@ Class.define(Block,[Resizable], {
 
         fo.setAttribute("width", rectDimensions.width - 20);
         fo.setAttribute("height", rectDimensions.height - 20);
-    },
-    _editContentHandler:function(e)
-    {
-        //Todo : traitement spécifique pour l'édition HTML
-        console.log("Block.editContentHandler : "+e.currentTarget.getAttribute("data-type"));
     }
 });
 
@@ -724,7 +735,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTr
 Class.define(Segment, [EventDispatcher], {
     _doubleClickHandler:function(e)
     {
-        if(this.treeEditor.isFrozen())
+        if(this.treeEditor.contentMode())
             return;
 
         this.splitInfo = e;
@@ -1080,11 +1091,13 @@ function PropertiesEditor(pElement, pTreeEditor)
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.RIGHT, KeyboardHandler.CTRL], this.move.proxy(this), [tiledMove, 0]);
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.TOP, KeyboardHandler.CTRL], this.move.proxy(this), [0, -tiledMove]);
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
+    this.treeEditor.addEventListener(TreeEditor.MODE_CHANGED, this.reselectBlock.proxy(this));
 }
 
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
+        this.last_block = pElement;
         var treeEditor = this.treeEditor;
         var ref = this;
         this.deselect();
@@ -1097,7 +1110,20 @@ Class.define(PropertiesEditor, [], {
 
         container.innerHTML = "";
 
-        var prop, label, inp_ct, input, id_inp, changed_cb, o, k;
+        var changed_cb = function(e)
+        {
+            pElement.setProperty(e.currentTarget.getAttribute("data-prop"), e.currentTarget.value);
+        };
+
+        var handleInput = function(pInput)
+        {
+            pInput.addEventListener("keydown", changed_cb, false);
+            pInput.addEventListener("keyup", changed_cb, false);
+            pInput.addEventListener("focus", treeEditor.keyboardHandler.suspend.proxy(treeEditor.keyboardHandler), false);
+            pInput.addEventListener("blur", treeEditor.keyboardHandler.resume.proxy(treeEditor.keyboardHandler), false);
+        };
+
+        var prop, label, inp_ct, input, id_inp, o, k;
         for(var i in editable_props)
         {
             if(!editable_props.hasOwnProperty(i))
@@ -1105,21 +1131,24 @@ Class.define(PropertiesEditor, [], {
 
             prop = editable_props[i];
 
+            if(prop.mode && prop.mode.indexOf(treeEditor.editor_mode))
+                continue;
+
             inp_ct = Element.create("div", {"class":"inp_container"}, container);
             id_inp = "input_"+i;
 
             label = Element.create("label", {"for":id_inp, "innerHTML":prop.label+" : "}, inp_ct);
 
-            changed_cb = function(e){
-                pElement.setProperty(e.currentTarget.getAttribute("data-prop"), e.currentTarget.value);
-            };
 
             switch(prop.type)
             {
                 case "text":
                     input = Element.create("input", {"id":id_inp, "name":id_inp, "type":"text", "value":prop.value, "data-prop":i}, inp_ct);
-                    input.addEventListener("keydown", changed_cb, false);
-                    input.addEventListener("keyup", changed_cb, false);
+                    handleInput(input);
+                    break;
+                case "html":
+                    input = Element.create("textarea", {"id":id_inp, "name":id_inp, "innerHTML":prop.value, "data-prop":i}, inp_ct);
+                    handleInput(input);
                     break;
                 case "select":
                     input = Element.create("select", {"id":id_inp, "name":id_inp, "data-prop":i}, inp_ct);
@@ -1182,15 +1211,22 @@ Class.define(PropertiesEditor, [], {
             pElement.remove();
         }, false);
     },
+    reselectBlock:function()
+    {
+        var b = this.treeEditor.svg.querySelector(".draggable."+PropertiesEditor.CLASS);
+        if(!b)
+            return;
+        this.edit(this.treeEditor.dispatchers[b.getAttribute("id")]);
+    },
     deselect:function()
     {
-        document.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
+        this.treeEditor.svg.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
         var container = this.element.querySelector(".properties");
         container.innerHTML = "";
     },
     move:function(pVector)
     {
-        if(this.treeEditor.isFrozen()||!pVector||pVector.length!=2)
+        if(this.treeEditor.contentMode()||!pVector||pVector.length!=2)
             return;
 
         for(var i in this.treeEditor.dispatchers)
@@ -1233,7 +1269,6 @@ Class.define(DragSelector, [], {
         var parentD = this.treeEditor.dispatchers[id];
 
         if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize")
-            || (e.target.getAttribute("contenteditable")&&e.target.getAttribute("contenteditable") == "true")
             || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
             return;
 
@@ -1358,12 +1393,21 @@ function KeyboardHandler()
     document.addEventListener("keyup", this._keyupHandler.proxy(this), false);
     this.states = {};
     this.shortcuts = [];
+    this.enabled = true;
 }
 
 Class.define(KeyboardHandler, [EventDispatcher], {
+    suspend:function()
+    {
+        this.enabled = false;
+    },
+    resume:function()
+    {
+        this.enabled = true;
+    },
     _keydownHandler:function(e)
     {
-        if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1)
+        if([KeyboardHandler.LEFT, KeyboardHandler.RIGHT, KeyboardHandler.TOP, KeyboardHandler.BOTTOM].indexOf(e.keyCode)>-1 && this.enabled)
             e.preventDefault();
         this.states[e.keyCode] = true;
         this.triggerShortcuts();
@@ -1391,7 +1435,7 @@ Class.define(KeyboardHandler, [EventDispatcher], {
     },
     triggerShortcuts:function()
     {
-        if(Object.keys(this.states).length === 0 && this.states.constructor === Object)
+        if(!this.enabled || (Object.keys(this.states).length === 0 && this.states.constructor === Object))
         {
             return;
         }
@@ -1437,9 +1481,14 @@ function TreeEditor(pContainer)
     this.keyboardHandler = new KeyboardHandler();
 
     var propertiesEditor = this.container.querySelector(".properties_editor");
+    this.editor_mode = propertiesEditor.querySelector(".actions button:not(.inactive").getAttribute("data-mode");
+    this.svg.classList.add(this.editor_mode);
 
     this.propertiesEditor = new PropertiesEditor(propertiesEditor, this);
-    propertiesEditor.querySelector("#toggle_ui").addEventListener("click", this.toggleFrozenStatus.proxy(this), false);
+    var ref = this;
+    propertiesEditor.querySelectorAll(".actions button").forEach(function(pElement) {
+        pElement.addEventListener("click", ref.toggleMode.proxy(ref), false);
+    });
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.V], this.cloneStash.proxy(this));
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.C], this.fillStash.proxy(this));
     this.keyboardHandler.addShortcut([KeyboardHandler.DELETE], this.deleteBlocks.proxy(this));
@@ -1480,9 +1529,9 @@ Class.define(TreeEditor, [EventDispatcher],
             }
             else
             {
+                //anchor1 shared
                 seg = s[anchor1];
                 seg.segments.push([anchor1, anchor2]);
-                //anchor1 shared
             }
 
             if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
@@ -1596,8 +1645,8 @@ Class.define(TreeEditor, [EventDispatcher],
         var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
 
         var cache = Element.create("div", {"class":"cache"}, fo);
-        Element.create("div", {"data-name":"title", "data-type":"string", "contenteditable":"true", "innerHTML":"Titre "+index}, cache);
-        Element.create("div", {"data-name":"description", "data-type":"html", "contenteditable":"true", "innerHTML":"Editer la description"}, cache);
+        Element.create("div", {"data-name":"title", "data-type":"string", "innerHTML":"Titre "+index}, cache);
+        Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Editer la description"}, cache);
 
         this.svg.appendChild(g);
 
@@ -1619,22 +1668,34 @@ Class.define(TreeEditor, [EventDispatcher],
         }
         return scroll;
     },
-    toggleFrozenStatus:function(e)
+    toggleMode:function(e)
     {
         var t = e.currentTarget;
-        this.svg.classList.toggle("frozen");
-        t.querySelector(".label").innerHTML = (this.svg.classList.contains("frozen")?"D&eacute;bloquer":"Bloquer")+" l'interface";
-        t.querySelector(".material-icons").innerHTML = (this.svg.classList.contains("frozen")?"&#xE899;":"&#xE898;");
+        var ref = this;
+        this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
+            if(pButton === t)
+                return;
+            ref.svg.classList.remove(pButton.getAttribute("data-mode"));
+            pButton.classList.add("inactive");
+        });
+        t.classList.remove("inactive");
+        this.editor_mode = t.getAttribute("data-mode");
+        this.svg.classList.add(this.editor_mode);
+        this.dispatchEvent(new Event(TreeEditor.MODE_CHANGED));
     },
-    isFrozen:function()
+    contentMode:function()
     {
-        return this.svg.classList.contains("frozen");
+        return this.editor_mode === TreeEditor.CONTENT_MODE;
     },
     deselectAll:function()
     {
         this.selector.deselectAll();
     }
 });
+
+TreeEditor.DESIGN_MODE = "design_mode";
+TreeEditor.CONTENT_MODE = "content_mode";
+TreeEditor.MODE_CHANGED = "evt_mode_changed";
 
 TreeEditor.create = function(pSelector)
 {

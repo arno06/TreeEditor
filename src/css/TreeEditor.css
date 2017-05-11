@@ -10,6 +10,7 @@ svg text{pointer-events: none;}
 svg .draggable rect{cursor: pointer;stroke: rgba(0, 0, 0, 1);stroke-width: 2px;}
 
 svg foreignObject .cache{width:calc(100% - 5px);height:100%; overflow:auto;}
+svg foreignObject .cache *{pointer-events: none;}
 svg foreignObject div[data-name="title"]{}
 svg foreignObject div[data-name="description"]{font-size:12px;}
 svg foreignObject *[data-empty="true"]{color:#666;}
@@ -36,8 +37,8 @@ svg circle.draggable[data-dragdrafted="true"]{stroke-width:1px;stroke: rgb(51, 1
 svg .draggable.edit rect{stroke: rgb(99, 218, 101);}
 
 svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
-svg.frozen circle, svg.frozen path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
-svg.frozen foreignObject div.cache{overflow:hidden;}
+svg.content_mode circle, svg.content_mode path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
+svg.content_mode foreignObject div.cache{overflow:hidden;}
 
 svg line.segment{stroke:black;stroke-width:2px;}
 
@@ -51,6 +52,7 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .actions button.delete{background: #e51926;margin-left:5px;}
 .properties_editor .actions span{vertical-align: middle;}
 .properties_editor .actions button:disabled, .properties_editor .properties .add_link_handler button:disabled{ background: #7faebd;color: #ececec;pointer-events: none;}
+.properties_editor .actions button.inactive{padding:6px 6px 6px 0;background: #74b3d2;color: #e0f3ff;}
 
 .properties_editor .properties{margin-bottom:15px;}
 
@@ -58,6 +60,8 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties .inp_container label{display:block;}
 .properties_editor .properties .inp_container input[type="text"]{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;}
 .properties_editor .properties .inp_container input[type="text"]:focus{border-color:#666;}
+.properties_editor .properties .inp_container textarea{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;height:150px;resize: vertical;}
+.properties_editor .properties .inp_container textarea:focus{border-color:#666;}
 .properties_editor .properties .inp_container select{width:100%;padding:5px;}
 .properties_editor .properties .inp_container select option{padding:5px;}
 .properties_editor .properties .inp_container select option[value="diagnostic"]{background:#ffce22;}
@@ -73,7 +77,7 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
 .properties_editor .properties ul li span[data-remove]:hover{transform:rotate(90deg);}
 
-
+.properties_editor .properties ul.next li{background:#fafafa;border-bottom:solid 1px #eee;}
 .properties_editor .properties ul.notes li,
 .properties_editor .properties ul.grades li{display:inline-block;}
 .properties_editor .properties ul.notes li span:first-of-type{background:#60a0ff;font-size:13px;color:#fff;width:15px;height:15px;border-radius:50%;display:inline-block;text-align:center;}
