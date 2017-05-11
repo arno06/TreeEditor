@@ -10,14 +10,12 @@ var type_list = {
     "treatment": "Traitement"
 };
 var grade_list = {
-    "none":"Aucun Grade",
-    "grade_a":"Grade A",
-    "grade_b":"Grade B",
-    "grade_c":"Grade C",
-    "ae":"AE"
+    "Grade A":"Grade A",
+    "Grade B":"Grade B",
+    "Grade C":"Grade C",
+    "AE":"AE"
 };
 var note_list = {
-    "none":"Sans Note",
     "1":"1",
     "2":"2",
     "3":"3",
@@ -392,34 +390,29 @@ Class.define(Block,[Resizable], {
     {
         switch(pName)
         {
-            case "title":
-                this.element.querySelector("text").innerHTML = pValue;
-                break;
             case "type":
                 this.element.setAttribute("data-type", pValue);
                 break;
-            case "grade":
+            case "add_grades":
                 if(!grade_list[pValue])
                     return;
-                this.collections[1].removeElements();
                 if(pValue !== "none")
                 {
-                    this.collections[1].addElement(grade_list[pValue], "Grade");
+                    this.collections[1].addElement(grade_list[pValue]);
+                    this.select();
                 }
-                this.element.setAttribute("data-grade", pValue);
                 break;
-            case "note":
+            case "add_notes":
                 if(!note_list[pValue])
                     return;
-                this.collections[0].removeElements();
                 if(pValue !== "none")
                 {
-                    this.collections[0].addElement(note_list[pValue], "Note");
+                    this.collections[0].addElement(note_list[pValue]);
+                    this.select();
                 }
-                this.element.setAttribute("data-note", pValue);
                 break;
             case "newLink":
-                if(pValue != "default")
+                if(pValue != "none")
                 {
                     this.treeEditor.createLink(this.element.getAttribute("id"), pValue);
                     this.select();
@@ -438,24 +431,63 @@ Class.define(Block,[Resizable], {
                 "type":"select",
                 "data":type_list,
                 "value":this.element.getAttribute("data-type")
-            },
-            "grade":{
-                "label":"Grade",
-                "type":"select",
-                "data":grade_list,
-                "value":this.element.getAttribute("data-grade")||"none"
-            },
-            "note":{
-                "label":"Note",
-                "type":"select",
-                "data":note_list,
-                "value":this.element.getAttribute("data-note")||"none"
             }
         };
+
+        var collections = [{"labelList":"Note", "name":"notes", "method":"removeNote", "availableList":note_list, "labelDefaultAdd":"Sélectionner une note", "labelAdd":"Ajouter une note"},
+                            {"labelList":"Grade", "name":"grades", "method":"removeGrade", "availableList":grade_list, "labelDefaultAdd":"Sélectionner un grade", "labelAdd":"Ajouter un grade"}];
+        var coll, dList, selectedData, value, i, max, ignore, addList, j, has_options;
+        for(var k = 0, maxk = collections.length; k<maxk; k++)
+        {
+            coll = collections[k];
+            dList = {};
+            ignore = [];
+            selectedData = this.collections[k].getSelectedElements();
+            for(i = 0, max = selectedData.length;i<max;i++)
+            {
+                value = selectedData[i];
+                dList[value] = {"label":value, "extra":value, "title":value, "method":coll.method};
+                ignore.push(value);
+            }
+
+            if(max > 0)
+            {
+                properties[coll.name] = {
+                    "label":coll.labelList+(max>1?"s":""),
+                    "type":"list",
+                    "data":dList
+                };
+            }
+
+            has_options = false;
+
+            addList = {"none":coll.labelDefaultAdd};
+            for(j in coll.availableList)
+            {
+                if(!coll.availableList.hasOwnProperty(j))
+                    continue;
+                value = coll.availableList[j];
+                if(ignore.indexOf(value) !== -1)
+                    continue;
+                has_options = true;
+                addList[value] = value;
+            }
+
+            if(has_options)
+            {
+                properties["add_"+coll.name] = {
+                    "label":coll.labelAdd,
+                    "type":"select",
+                    "data":addList
+                };
+            }
+
+        }
+
         var hasNext = false;
         var next = {};
         var bl, label, title;
-        for(var i in this.next)
+        for(i in this.next)
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
@@ -476,9 +508,9 @@ Class.define(Block,[Resizable], {
             };
         }
 
-        var ignore = [this.element.getAttribute("id")].concat(this.getLinkedBlocks());
-        var has_options = false;
-        var further_blocks = {"default":"Sélectionner un block"};
+        ignore = [this.element.getAttribute("id")].concat(this.getLinkedBlocks());
+        has_options = false;
+        var further_blocks = {"none":"Sélectionner un block"};
         for(i in this.treeEditor.dispatchers)
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
@@ -510,6 +542,14 @@ Class.define(Block,[Resizable], {
         var id = e.currentTarget.element.getAttribute("id");
         this.previous[id] = null;
         delete this.previous[id];
+    },
+    removeGrade:function(pGrade)
+    {
+        this.collections[1].removeElement(pGrade);
+    },
+    removeNote:function(pNote)
+    {
+        this.collections[0].removeElement(pNote);
     },
     removeLink:function(pLink)
     {
@@ -835,16 +875,19 @@ Class.define(Link, [], {
 
 function ElementCollection(pType, pParentBlock, pParentAlign)
 {
+    this.type = pType;
     this.groupElement = pParentBlock.element.querySelector('g[data-role="'+pType+'"]');
     if(!this.groupElement)
         this.groupElement = SVGElement.create("g", {"data-role":pType}, pParentBlock.element);
     this.parentBlock = pParentBlock;
     this.parentAlign = pParentAlign;
     this.elements = [];
+    this.elementsValues = [];
     var ref = this;
     this.groupElement.querySelectorAll("g").forEach(function(pElement)
     {
         ref.elements.push(pElement);
+        ref.elementsValues.push(pElement.querySelector("text").textContent);
     });
     this.updatePosition();
     this._updatePosition = this.updatePosition.proxy(this);
@@ -853,12 +896,43 @@ function ElementCollection(pType, pParentBlock, pParentAlign)
 }
 
 Class.define(ElementCollection, [], {
-    addElement:function(pLabel, pType)
+    addElement:function(pLabel)
     {
-        if(!ElementCollection[pType])
+        if(!ElementCollection[this.type])
             return;
-        this.elements.push(ElementCollection[pType](pLabel, this.groupElement));
+        this.elementsValues.push(pLabel);
+        this.elements.push(ElementCollection[this.type](pLabel, this.groupElement));
+        this.elements.sort(function(pA, pB)
+        {
+            var t1 = pA.querySelector("text").textContent;
+            var t2 = pB.querySelector("text").textContent;
+            if(t1<t2)
+                return -1;
+            else if (t1>t2)
+                return 1;
+            return 0;
+        });
+        var p = this.groupElement;
+        this.elements.forEach(function(pElement){
+            p.removeChild(pElement);
+            p.appendChild(pElement);
+        });
         this.updatePosition();
+    },
+    removeElement:function(pLabel)
+    {
+        var filtered = [];
+        var v;
+        for(var i = 0, max = this.elementsValues.length; i<max;i++)
+        {
+            v = this.elementsValues[i];
+            if(v === pLabel)
+                continue;
+            filtered.push(v);
+        }
+        this.removeElements();
+        for(i = 0, max = filtered.length; i<max;i++)
+            this.addElement(filtered[i]);
     },
     removeElements:function()
     {
@@ -867,7 +941,12 @@ Class.define(ElementCollection, [], {
             pElement.parentNode.removeChild(pElement);
         });
         this.elements = [];
+        this.elementsValues = [];
         this.updatePosition();
+    },
+    getSelectedElements:function()
+    {
+        return this.elementsValues;
     },
     getWidth:function()
     {
@@ -919,7 +998,7 @@ Class.define(ElementCollection, [], {
     }
 });
 
-ElementCollection.Grade = function(pLabel, pParent)
+ElementCollection.grades = function(pLabel, pParent)
 {
     var g = SVGElement.create("g", {"data-role":"grade"}, pParent);
     var rect = SVGElement.create("rect", {}, g);
@@ -929,7 +1008,7 @@ ElementCollection.Grade = function(pLabel, pParent)
     return g;
 };
 
-ElementCollection.Note = function(pLabel, pParent)
+ElementCollection.notes = function(pLabel, pParent)
 {
     var g = SVGElement.create("g", {"data-role":"note"}, pParent);
     var circle = SVGElement.create("circle", {}, g);
@@ -1053,6 +1132,14 @@ Class.define(PropertiesEditor, [], {
                         if(k == prop.value)
                             o.selected = "selected";
                         Element.create("option", o, input);
+                    }
+
+                    var none = input.querySelector('option[value="none"]');
+                    if(none)
+                    {
+                        none.parentNode.removeChild(none);
+                        input.insertBefore(none, input.querySelector("option"));
+                        none.setAttribute("selected", "selected");
                     }
                     break;
                 case "list":
