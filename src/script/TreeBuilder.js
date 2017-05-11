@@ -1143,7 +1143,7 @@ Class.define(PropertiesEditor, [], {
                     }
                     break;
                 case "list":
-                    var ul = Element.create("ul", {"class":"list"}, inp_ct);
+                    var ul = Element.create("ul", {"class":"list "+i}, inp_ct);
                     var li, action, opt;
                     for(k in prop.data)
                     {

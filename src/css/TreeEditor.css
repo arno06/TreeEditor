@@ -72,3 +72,9 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties ul li{padding:5px;}
 .properties_editor .properties ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
 .properties_editor .properties ul li span[data-remove]:hover{transform:rotate(90deg);}
+
+
+.properties_editor .properties ul.notes li,
+.properties_editor .properties ul.grades li{display:inline-block;}
+.properties_editor .properties ul.notes li span:first-of-type{background:#60a0ff;font-size:13px;color:#fff;width:15px;height:15px;border-radius:50%;display:inline-block;text-align:center;}
+.properties_editor .properties ul.grades li span:first-of-type{background:#d20000;font-size:13px;color:#fff;padding:2px;}
