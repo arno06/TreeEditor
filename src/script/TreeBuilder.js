@@ -418,6 +418,16 @@ Class.define(Block,[Resizable], {
                 }
                 this.element.setAttribute("data-note", pValue);
                 break;
+            case "newLink":
+                if(pValue != "default")
+                {
+                    this.treeEditor.createLink(this.element.getAttribute("id"), pValue);
+                    this.select();
+                }
+                break;
+            default:
+                console.log("Block::setProperty('"+pName+"', '"+pValue+"');");
+                break;
         }
     },
     getEditableProperties:function()
@@ -444,13 +454,17 @@ Class.define(Block,[Resizable], {
         };
         var hasNext = false;
         var next = {};
-        var bl;
+        var bl, label, title;
         for(var i in this.next)
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
             bl = this.treeEditor.dispatchers[i];
-            next[i] = {"label":bl.element.querySelector('foreignObject div[data-name="title"]').innerHTML, "extra":this.next[i]};
+            title = bl.element.querySelector('foreignObject div[data-name="title"]').textContent;
+            label = title;
+            if(label.length>30)
+                label = label.substr(0, 27)+"...";
+            next[i] = {"label":label, "extra":this.next[i], "title":title, "method":"removeLink"};
             hasNext = true;
         }
         if(hasNext)
@@ -461,6 +475,30 @@ Class.define(Block,[Resizable], {
                 "data":next
             };
         }
+
+        var ignore = [this.element.getAttribute("id")].concat(this.getLinkedBlocks());
+        var has_options = false;
+        var further_blocks = {"default":"Sélectionner un block"};
+        for(i in this.treeEditor.dispatchers)
+        {
+            if(!this.treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
+                continue;
+            title = this.treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="title"]');
+            if(!title)
+                continue;
+            further_blocks[this.treeEditor.dispatchers[i].element.getAttribute("id")] = title.innerHTML;
+            has_options = true;
+        }
+
+        if(has_options)
+        {
+            properties.newLink = {
+                "label":"Ajouter un lien vers",
+                "type":"select",
+                "data":further_blocks
+            };
+        }
+
         return properties;
     },
     nextBlockRemovedHandler:function(e){
@@ -1019,63 +1057,26 @@ Class.define(PropertiesEditor, [], {
                     break;
                 case "list":
                     var ul = Element.create("ul", {"class":"list"}, inp_ct);
-                    var li, action;
+                    var li, action, opt;
                     for(k in prop.data)
                     {
                         if(!prop.data.hasOwnProperty(k))
                             continue;
-
+                        opt = prop.data[k];
                         li = Element.create("li", {}, ul);
-                        Element.create("span", {"innerHTML":prop.data[k].label}, li);
-                        action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":prop.data[k].extra, "class":"remove"}, li);
+                        Element.create("span", {"innerHTML":opt.label, "title":opt.title}, li);
+                        action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":opt.extra, "class":"remove", "data-method":opt.method}, li);
                         action.addEventListener("click", function(e){
                             var t = e.currentTarget;
                             var remove = t.getAttribute("data-remove");
-                            pElement.removeLink(remove);
+                            var method = t.getAttribute("data-method");
+                            if(pElement[method])
+                                pElement[method](remove);
                             ref.edit(pElement);
                         }, false);
                     }
                     break;
             }
-        }
-
-        var ignore = [pElement.element.getAttribute("id")].concat(pElement.getLinkedBlocks());
-        var has_options = false;
-        var further_blocks = {}, title;
-        for(i in treeEditor.dispatchers)
-        {
-            if(!treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
-                continue;
-            title = treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="title"]');
-            if(!title)
-                continue;
-            further_blocks[treeEditor.dispatchers[i].element.getAttribute("id")] = title.innerHTML;
-            has_options = true;
-        }
-
-        if(has_options)
-        {
-            inp_ct = Element.create("div", {"class":"add_link_handler"}, container);
-            Element.create("label", {"innerHTML":"Ajouter un lien vers : "}, inp_ct);
-            o = {};
-            if(!has_options)
-                o['disabled'] = 'disabled';
-            input = Element.create("select",o, inp_ct);
-            for(i in further_blocks)
-            {
-                if(!further_blocks.hasOwnProperty(i))
-                    continue;
-                Element.create("option", {"value":i, "innerHTML":further_blocks[i]}, input);
-            }
-            o['innerHTML'] = "Ajouter";
-            var button = Element.create("button", o, inp_ct);
-
-            button.addEventListener("click", function(e){
-                var t = e.currentTarget;
-                var selectedValue = t.parentNode.querySelector("select").value;
-                treeEditor.createLink(pElement.element.getAttribute("id"), selectedValue);
-                pElement.select();
-            }, false);
         }
 
         inp_ct = Element.create("div", {"class":"actions"}, container);
