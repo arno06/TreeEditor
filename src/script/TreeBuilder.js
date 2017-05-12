@@ -338,9 +338,6 @@ Class.define(Resizable, [Draggable], {
             height:this.startDimensions.height + diff.y
         };
 
-        newDimensions.width = Math.max(newDimensions.width, 100);
-        newDimensions.height = Math.max(newDimensions.height, 50);
-
         this.setDimensions(newDimensions.width, newDimensions.height);
     },
     _resizedHandler:function(e)
@@ -351,6 +348,8 @@ Class.define(Resizable, [Draggable], {
     },
     setDimensions:function(pWidth, pHeight)
     {
+        pWidth = Math.max(pWidth, 90);
+        pHeight = Math.max(pHeight, 55);
         var rect = this.element.querySelector("rect");
         rect.setAttribute("width", Math.round(pWidth));
         rect.setAttribute("height", Math.round(pHeight));
@@ -371,6 +370,7 @@ function Block(pElement, pTreeEditor)
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
+    this.tweens = {width:null, height:null};
     this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-18,bottom")];
     this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
 }
@@ -382,6 +382,8 @@ Class.define(Block,[Resizable], {
     },
     setProperty:function(pName, pValue)
     {
+        var ref = this;
+        var dim;
         switch(pName)
         {
             case "title":
@@ -417,6 +419,34 @@ Class.define(Block,[Resizable], {
                     this.select();
                 }
                 break;
+            case "width":
+                if(pValue !== "" && pValue > 0)
+                {
+                    if(this.tweens.width)
+                    {
+                        M4Tween.killTweensOf(this.tweens.width);
+                    }
+                    dim = this.getDimensions();
+                    this.tweens.width = {"value":dim.width};
+                    M4Tween.to(this.tweens.width, 1, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
+                        ref.setDimensions(Number(pDummy.value), dim.height);
+                    });
+                }
+                break;
+            case "height":
+                if(pValue !== "" && pValue > 0)
+                {
+                    if(this.tweens.height)
+                    {
+                        M4Tween.killTweensOf(this.tweens.height);
+                    }
+                    dim = this.getDimensions();
+                    this.tweens.height = {"value":dim.height};
+                    M4Tween.to(this.tweens.height, 1, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
+                        ref.setDimensions(dim.width, Number(pDummy.value));
+                    });
+                }
+                break;
             default:
                 console.log("Block::setProperty('"+pName+"', '"+pValue+"');");
                 break;
@@ -443,6 +473,18 @@ Class.define(Block,[Resizable], {
                 "type":"select",
                 "data":type_list,
                 "value":this.element.getAttribute("data-type")
+            },
+            "width": {
+                "label":"Largeur",
+                "mode":[TreeEditor.DESIGN_MODE],
+                "type":"number",
+                "value":this.getDimensions().width
+            },
+            "height": {
+                "label":"Hauteur",
+                "mode":[TreeEditor.DESIGN_MODE],
+                "type":"number",
+                "value":this.getDimensions().height
             }
         };
 
@@ -626,8 +668,8 @@ Class.define(Block,[Resizable], {
 
         var rectDimensions = this.getDimensions();
 
-        fo.setAttribute("width", rectDimensions.width - 20);
-        fo.setAttribute("height", rectDimensions.height - 20);
+        fo.setAttribute("width", Math.max(rectDimensions.width - 20, 0));
+        fo.setAttribute("height", Math.max(rectDimensions.height - 20, 0));
     }
 });
 
@@ -1119,6 +1161,7 @@ Class.define(PropertiesEditor, [], {
         {
             pInput.addEventListener("keydown", changed_cb, false);
             pInput.addEventListener("keyup", changed_cb, false);
+            pInput.addEventListener("mouseup", changed_cb, false);
             pInput.addEventListener("focus", treeEditor.keyboardHandler.suspend.proxy(treeEditor.keyboardHandler), false);
             pInput.addEventListener("blur", treeEditor.keyboardHandler.resume.proxy(treeEditor.keyboardHandler), false);
         };
@@ -1142,8 +1185,9 @@ Class.define(PropertiesEditor, [], {
 
             switch(prop.type)
             {
+                case "number":
                 case "text":
-                    input = Element.create("input", {"id":id_inp, "name":id_inp, "type":"text", "value":prop.value, "data-prop":i}, inp_ct);
+                    input = Element.create("input", {"id":id_inp, "name":id_inp, "type":prop.type, "value":prop.value, "data-prop":i}, inp_ct);
                     handleInput(input);
                     break;
                 case "html":
