@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <meta charset="UTF-8">
         <title>
             Tree modifiers
         </title>
@@ -19,22 +20,23 @@
         <svg width="100%" height="100%">
             <defs>
                 <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                    <path d="M0,0 L0,6 L9,3 z" fill="#000" />
+                    <path d="M0,0 L0,6 L9,3 z" fill="#000"></path>
                 </marker>
             </defs>
-            <g id="group-1" transform="translate(400,30)" data-role="block" data-type="diagnostic">
-                <rect width="200" height="75"></rect>
-                <foreignObject x="10" y="10" width="180" height="55">
+            <g id="group-1" transform="translate(310,13)" data-role="block" data-type="diagnostic" class="draggable">
+                <rect width="528" height="81"></rect>
+                <foreignObject x="10" y="10" width="508" height="61">
                     <div class="cache">
-                        <div data-name="title" data-type="text" contenteditable="true">Editer le titre</div>
-                        <div data-name="description" data-type="html" contenteditable="true">Editer la description</div>
+                        <div data-name="title" data-type="text">Titre</div>
+                        <div data-name="description" data-type="html">Description</div>
                     </div>
                 </foreignObject>
             </g>
         </svg>
         <div class="properties_editor">
             <div class="actions">
-                <button id="toggle_ui"><span class="material-icons">&#xE898;</span><span class="label">Bloquer l'interface</span></button>
+                <button class="inactive" data-mode="design_mode"><span class="material-icons">&#xE3AE;</span><span class="label">Mode design</span></button>
+                <button class="" data-mode="content_mode"><span class="material-icons">&#xE254;</span><span class="label">Mode auteur</span></button>
             </div>
             <div class="properties">
 

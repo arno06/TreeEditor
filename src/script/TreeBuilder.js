@@ -140,7 +140,7 @@ Class.define(Draggable, [EventDispatcher], {
             pX = Math.min(t.getX() + t.getWidth(), pX);
             pY = Math.max(t.getY(), pY);
             pY = Math.min(t.getY() + t.getHeight(), pY);
-            var newRestraint = {x:(((pX - t.getX()) / t.getWidth())*100)+"%", y:(((pY - t.getY()) / t.getHeight()) * 100)+"%"};
+            var newRestraint = {x:Math.round(((pX - t.getX()) / t.getWidth())*100)+"%", y:Math.round(((pY - t.getY()) / t.getHeight()) * 100)+"%"};
             if(["left", "right"].indexOf(restraint[1])>-1)
             {
                 if(restraint[1]== "left")
@@ -170,7 +170,7 @@ Class.define(Draggable, [EventDispatcher], {
             this.options.restraintTo[2] = newRestraint.y;
             this._updateOptions();
         }
-        this.element.setAttribute("transform", "translate("+pX+","+pY+")");
+        this.element.setAttribute("transform", "translate("+Math.round(pX)+","+Math.round(pY)+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     },
     move:function(pVectorX, pVectorY)
@@ -352,8 +352,8 @@ Class.define(Resizable, [Draggable], {
     setDimensions:function(pWidth, pHeight)
     {
         var rect = this.element.querySelector("rect");
-        rect.setAttribute("width", pWidth);
-        rect.setAttribute("height", pHeight);
+        rect.setAttribute("width", Math.round(pWidth));
+        rect.setAttribute("height", Math.round(pHeight));
         var resizer = this.element.querySelector('path[data-role="resize"]');
         resizer.setAttribute("transform", "translate("+(pWidth-15)+", "+(pHeight-15)+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
@@ -1648,7 +1648,7 @@ Class.define(TreeEditor, [EventDispatcher],
         Element.create("div", {"data-name":"title", "data-type":"string", "innerHTML":"Titre "+index}, cache);
         Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Editer la description"}, cache);
 
-        this.svg.appendChild(g);
+        this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
 
         this.dispatchers[g.getAttribute("id")] = new Block(g, this);
 
