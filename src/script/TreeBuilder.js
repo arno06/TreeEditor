@@ -422,28 +422,18 @@ Class.define(Block,[Resizable], {
             case "width":
                 if(pValue !== "" && pValue > 0)
                 {
-                    if(this.tweens.width)
-                    {
-                        M4Tween.killTweensOf(this.tweens.width);
-                    }
                     dim = this.getDimensions();
-                    this.tweens.width = {"value":dim.width};
-                    M4Tween.to(this.tweens.width, 1, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
-                        ref.setDimensions(Number(pDummy.value), dim.height);
+                    this.treeEditor.animate(this, "width", dim.width, pValue, 1, function(pDummy, pContext){
+                        pContext.setDimensions(Number(pDummy.value), dim.height);
                     });
                 }
                 break;
             case "height":
                 if(pValue !== "" && pValue > 0)
                 {
-                    if(this.tweens.height)
-                    {
-                        M4Tween.killTweensOf(this.tweens.height);
-                    }
                     dim = this.getDimensions();
-                    this.tweens.height = {"value":dim.height};
-                    M4Tween.to(this.tweens.height, 1, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
-                        ref.setDimensions(dim.width, Number(pDummy.value));
+                    this.treeEditor.animate(this, "height", dim.height, pValue, 1, function(pDummy, pContext){
+                        pContext.setDimensions(dim.width, Number(pDummy.value));
                     });
                 }
                 break;
@@ -721,6 +711,10 @@ Class.define(Anchor, [Draggable],  {
     {
         var t = this.element.getBoundingClientRect();
         return (Number(t.top)||0)+this.radius;
+    },
+    getDimensions:function()
+    {
+        return {width:this.radius, height:this.radius};
     }
 });
 
@@ -1254,6 +1248,34 @@ Class.define(PropertiesEditor, [], {
             ref.deselect();
             pElement.remove();
         }, false);
+
+        this.handleSelectionProperties();
+    },
+    handleSelectionProperties:function()
+    {
+        var selectedElements = this.treeEditor.selector.selectedElements();
+        if(selectedElements.length < 2 || this.treeEditor.contentMode())
+            return;
+
+        Element.create("h2", {"innerHTML":"Pour la sélection"}, this.element.querySelector(".properties"));
+
+        var buttonsRow = this.treeEditor.selector.getSelectionProperties();
+
+        var inpContainer, label, buttonContainer, button, row, j, maxj, icon, b;
+        for(var i = 0, max = buttonsRow.length; i<max; i++)
+        {
+            row = buttonsRow[i];
+            inpContainer = Element.create("div", {"class":"inp_container"}, this.element.querySelector(".properties"));
+            label = Element.create("label", {"innerHTML":row.label+" : "}, inpContainer);
+            buttonContainer = Element.create("div", {"class":"buttons"}, inpContainer);
+            for(j = 0, maxj = row.buttons.length; j<maxj; j++)
+            {
+                b = row.buttons[j];
+                button = Element.create("button", {"title": b.title, "data-param": b.param}, buttonContainer);
+                icon = Element.create("i", {"class":"material-icons", "innerHTML": b.icon}, button);
+                button.addEventListener("click", b.method, false);
+            }
+        }
     },
     reselectBlock:function()
     {
@@ -1297,6 +1319,7 @@ function DragSelector(pTreeEditor)
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
+    this.tweens = {horizontal:null, vertical:null};
 }
 
 Class.define(DragSelector, [], {
@@ -1413,6 +1436,113 @@ Class.define(DragSelector, [], {
             if(b.isSelectable())
                 DragSelector.select(b);
         }
+    },
+    align:function(e)
+    {
+        if(!e)
+            return;
+
+        var alignment = e.currentTarget.getAttribute("data-param");
+        if(!alignment)
+            return;
+
+        var setX = function(pDummy, pContext)
+        {
+            pContext.setX(pDummy.value);
+        };
+
+        var setY = function(pDummy, pContext)
+        {
+            pContext.setY(pDummy.value);
+        };
+
+        var horizontal = ["left","right","center"].indexOf(alignment)!==-1;
+
+        var handler = horizontal?setX:setY;
+        var getProp = horizontal?"getX":"getY";
+        var getPropComp = horizontal?"width":"height";
+        var propName = horizontal?"x":"y";
+
+        var elements = this.selectedElements();
+
+        var i, max, block, value, newValue;
+
+        switch(alignment)
+        {
+            case "top":
+            case "left":
+                for(i = 0, max = elements.length; i<max; i++)
+                {
+                    block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+
+                    if(typeof value == "undefined")
+                    {
+                        value = block[getProp]();
+                        continue;
+                    }
+                    value = Math.min(value, block[getProp]());
+                }
+
+                for(i = 0, max = elements.length; i<max; i++)
+                {
+                    block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+                    this.treeEditor.animate(block, propName, block[getProp](), value, 1, handler);
+                }
+                break;
+            case "bottom":
+            case "right":
+                for(i = 0, max = elements.length; i<max; i++)
+                {
+                    block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+
+                    if(typeof value == "undefined")
+                    {
+                        value = block[getProp]()+block.getDimensions()[getPropComp];
+                        continue;
+                    }
+                    if(!(block instanceof Block))
+                        continue;
+                    value = Math.max(value, block[getProp]()+block.getDimensions()[getPropComp]);
+                }
+
+                for(i = 0, max = elements.length; i<max; i++)
+                {
+                    block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+                    newValue = !(block instanceof Block)?value:value - block.getDimensions()[getPropComp];
+                    this.treeEditor.animate(block, propName, block[getProp](), newValue, 1, handler);
+                }
+                break;
+            case "centerV":
+            case "center":
+                for(i = 0, max = elements.length; i<max; i++)
+                {
+                    block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+
+                    if(typeof value == "undefined")
+                    {
+                        value = block[getProp]()+(block.getDimensions()[getPropComp]>>1);
+                        continue;
+                    }
+                    newValue = !(block instanceof Block)?value:value - (block.getDimensions()[getPropComp]>>1);
+                    this.treeEditor.animate(block, propName, block[getProp](), newValue, 1, handler);
+                }
+                break;
+        }
+    },
+    getSelectionProperties:function()
+    {
+        return [
+            {"label":"Alignement horizontal", "buttons":[
+                {"title":"Aligner les élements à gauche", "icon":"format_align_left", "method":this.align.proxy(this), "param":"left"},
+                {"title":"Centrer les élements", "icon":"format_align_center", "method":this.align.proxy(this), "param":"center"},
+                {"title":"Aligner les élements à droite", "icon":"format_align_right", "method":this.align.proxy(this), "param":"right"}
+            ]},
+            {"label":"Alignement vertical", "buttons":[
+                {"title":"Aligner les élements en haut", "icon":"vertical_align_top", "method":this.align.proxy(this), "param":"top"},
+                {"title":"Centrer les élements", "icon":"vertical_align_center", "method":this.align.proxy(this), "param":"centerV"},
+                {"title":"Aligner les élements en bas", "icon":"vertical_align_bottom", "method":this.align.proxy(this), "param":"bottom"}
+            ]}
+        ];
     }
 });
 
@@ -1620,6 +1750,20 @@ Class.define(TreeEditor, [EventDispatcher],
     resume:function()
     {
         //Todo : implémenter la possibiliter de reprendre les écoutes sur les évènements
+    },
+    animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
+    {
+        var id = pDispatcher.element.getAttribute("id");
+        if(!this.tweens)
+            this.tweens = {};
+        if(!this.tweens[id])
+            this.tweens[id] = {};
+        if(this.tweens[id][pProp])
+            M4Tween.killTweensOf(this.tweens[id][pProp]);
+        this.tweens[id][pProp] = {value:pStartValue};
+        M4Tween.to(this.tweens[id][pProp], pDuration, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
+            pOnUpdate(pDummy, pDispatcher);
+        });
     },
     deleteBlocks:function()
     {
