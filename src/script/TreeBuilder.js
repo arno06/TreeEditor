@@ -1468,7 +1468,22 @@ Class.define(DragSelector, [EventDispatcher], {
         var block;
         var ignore = [null, null];
         var range = {};
-        var elements = this.selectedElements();
+        var elements = [];
+        this.selectedElements().forEach(function(pElement){
+            elements.push(pElement);
+        });
+
+        var ref = this;
+        elements.sort(function(pA, pB)
+        {
+            var t1 = ref.treeEditor.dispatchers[pA.getAttribute("id")][getProp]();
+            var t2 = ref.treeEditor.dispatchers[pB.getAttribute("id")][getProp]();
+            if(t1<t2)
+                return -1;
+            else if (t1>t2)
+                return 1;
+            return 0;
+        });
 
         for(var i = 0, max = elements.length; i<max;i++)
         {
