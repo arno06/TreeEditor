@@ -370,7 +370,6 @@ function Block(pElement, pTreeEditor)
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
-    this.tweens = {width:null, height:null};
     this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-18,bottom")];
     this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
 }
@@ -1128,6 +1127,7 @@ function PropertiesEditor(pElement, pTreeEditor)
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.TOP, KeyboardHandler.CTRL], this.move.proxy(this), [0, -tiledMove]);
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
     this.treeEditor.addEventListener(TreeEditor.MODE_CHANGED, this.reselectBlock.proxy(this));
+    this.treeEditor.selector.addEventListener(DragSelector.SELECTION_DONE, this.handleSelectionProperties.proxy(this));
 }
 
 Class.define(PropertiesEditor, [], {
@@ -1145,6 +1145,8 @@ Class.define(PropertiesEditor, [], {
         var container = this.element.querySelector(".properties");
 
         container.innerHTML = "";
+
+        this.handleSelectionProperties();
 
         var changed_cb = function(e)
         {
@@ -1248,10 +1250,8 @@ Class.define(PropertiesEditor, [], {
             ref.deselect();
             pElement.remove();
         }, false);
-
-        this.handleSelectionProperties();
     },
-    handleSelectionProperties:function()
+    handleSelectionProperties:function(e)
     {
         var selectedElements = this.treeEditor.selector.selectedElements();
         if(selectedElements.length < 2 || this.treeEditor.contentMode())
@@ -1319,10 +1319,9 @@ function DragSelector(pTreeEditor)
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
-    this.tweens = {horizontal:null, vertical:null};
 }
 
-Class.define(DragSelector, [], {
+Class.define(DragSelector, [EventDispatcher], {
     mousedownHandler:function(e)
     {
         var t = e.target;
@@ -1414,6 +1413,8 @@ Class.define(DragSelector, [], {
         document.removeEventListener("mouseup", this._selectUpHandler, false);
         document.removeEventListener("mousemove", this._selectMoveHandler, false);
         this.svg.removeChild(this.rect);
+        this.rect = null;
+        this.dispatchEvent(new Event(DragSelector.SELECTION_DONE));
     },
     selectedElements:function()
     {
@@ -1436,6 +1437,100 @@ Class.define(DragSelector, [], {
             if(b.isSelectable())
                 DragSelector.select(b);
         }
+    },
+    distribute:function(e)
+    {
+        if(!e)
+            return;
+
+        var kind = e.currentTarget.getAttribute("data-param");
+        if(!kind)
+            return;
+
+        var horizontal = kind === "horiz";
+
+        var getProp = horizontal?"getX":"getY";
+        var getPropComp = horizontal?"width":"height";
+        var prop = horizontal?"x":"y";
+
+        var setX = function(pDummy, pContext)
+        {
+            pContext.setX(pDummy.value);
+        };
+
+        var setY = function(pDummy, pContext)
+        {
+            pContext.setY(pDummy.value);
+        };
+
+        var handler = horizontal?setX:setY;
+
+        var block;
+        var ignore = [null, null];
+        var range = {};
+        var elements = this.selectedElements();
+
+        for(var i = 0, max = elements.length; i<max;i++)
+        {
+            block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+            if(!range.min)
+            {
+                range.min = block[getProp]();
+                range.max = block[getProp]() + block.getDimensions()[getPropComp];
+                continue;
+            }
+
+            range.min = Math.min(range.min, block[getProp]());
+            range.max = Math.max(range.max, block[getProp]() + block.getDimensions()[getPropComp]);
+        }
+
+        for(i = 0;i<max;i++)
+        {
+            block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+
+            if(range.min === block[getProp]() && !ignore[0])
+                ignore[0] = elements[i];
+
+            if((range.max === (block[getProp]() + block.getDimensions()[getPropComp])) && !ignore[1])
+                ignore[1] = elements[i];
+        }
+
+        var ignoreCount = 1;
+        if(ignore[0] !== ignore[1])
+        {
+            ignoreCount = 2;
+            var blockMin = this.treeEditor.dispatchers[ignore[0].getAttribute("id")];
+            var blockMax = this.treeEditor.dispatchers[ignore[1].getAttribute("id")];
+
+            if(blockMax[getProp]() >= (blockMin[getProp]() + blockMin.getDimensions()[getPropComp]))
+            {
+                range.min = blockMin[getProp]() + blockMin.getDimensions()[getPropComp];
+                if(blockMax[getProp]() > range.min)
+                    range.max = blockMax[getProp]();
+            }
+        }
+
+        var totalMargin = 0;
+        for(i = 0;i<max;i++) {
+            if(ignore.indexOf(elements[i]) !== -1)
+                continue;
+            block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+            totalMargin += block.getDimensions()[getPropComp];
+        }
+
+        var margin = ((range.max - range.min) - totalMargin) / ((max - ignoreCount)+1);
+
+        var currentValue = range.min;
+        for(i = 0;i<max;i++) {
+            if(ignore.indexOf(elements[i]) !== -1)
+                continue;
+            block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
+            currentValue += margin;
+            this.treeEditor.animate(block, prop, block[getProp](), currentValue, 1, handler);
+            currentValue += block.getDimensions()[getPropComp];
+        }
+
+
     },
     align:function(e)
     {
@@ -1531,7 +1626,7 @@ Class.define(DragSelector, [], {
     },
     getSelectionProperties:function()
     {
-        return [
+        var buttonsRows = [
             {"label":"Alignement horizontal", "buttons":[
                 {"title":"Aligner les élements à gauche", "icon":"format_align_left", "method":this.align.proxy(this), "param":"left"},
                 {"title":"Centrer les élements", "icon":"format_align_center", "method":this.align.proxy(this), "param":"center"},
@@ -1543,9 +1638,20 @@ Class.define(DragSelector, [], {
                 {"title":"Aligner les élements en bas", "icon":"vertical_align_bottom", "method":this.align.proxy(this), "param":"bottom"}
             ]}
         ];
+
+        if(this.selectedElements().length>2)
+            buttonsRows.push({
+                "label":"Répartition des éléments", "buttons":[
+                    {"title":"Répartition horizontale", "icon":"more_horiz", "method":this.distribute.proxy(this), "param":"horiz"},
+                    {"title":"Répartition verticale", "icon":"more_vert", "method":this.distribute.proxy(this), "param":"vert"}
+                ]
+            });
+
+        return buttonsRows;
     }
 });
 
+DragSelector.SELECTION_DONE = "evt_selection_done";
 DragSelector.ATTRIBUTE = "data-dragdrafted";
 DragSelector.select = function(pDraggable)
 {
@@ -1650,9 +1756,11 @@ function TreeEditor(pContainer)
     this.dispatchers = {};
     this.links = {};
     this.last_block = "";
+    this.useAnimations = true;
     this.svg = this.container.querySelector("svg");
     this.initTree();
     this.keyboardHandler = new KeyboardHandler();
+    this.selector = new DragSelector(this);
 
     var propertiesEditor = this.container.querySelector(".properties_editor");
     this.editor_mode = propertiesEditor.querySelector(".actions button:not(.inactive").getAttribute("data-mode");
@@ -1666,8 +1774,6 @@ function TreeEditor(pContainer)
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.V], this.cloneStash.proxy(this));
     this.keyboardHandler.addShortcut([KeyboardHandler.CTRL, KeyboardHandler.C], this.fillStash.proxy(this));
     this.keyboardHandler.addShortcut([KeyboardHandler.DELETE], this.deleteBlocks.proxy(this));
-
-    this.selector = new DragSelector(this);
 }
 
 Class.define(TreeEditor, [EventDispatcher],
@@ -1753,6 +1859,11 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
     {
+        if(!this.useAnimations)
+        {
+            pOnUpdate({value:pValue}, pDispatcher);
+            return;
+        }
         var id = pDispatcher.element.getAttribute("id");
         if(!this.tweens)
             this.tweens = {};
