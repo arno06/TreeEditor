@@ -58,8 +58,8 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 
 .properties_editor .properties .inp_container{padding:15px;border-bottom:solid 1px #ddd;}
 .properties_editor .properties .inp_container label{display:block;}
-.properties_editor .properties .inp_container input[type="text"]{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;}
-.properties_editor .properties .inp_container input[type="text"]:focus{border-color:#666;}
+.properties_editor .properties .inp_container input[type="text"],.properties_editor .properties .inp_container input[type="number"]{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;}
+.properties_editor .properties .inp_container input[type="text"]:focus,.properties_editor .properties .inp_container input[type="text"]:focus{border-color:#666;}
 .properties_editor .properties .inp_container textarea{width:calc(100% - 10px);padding:5px;border:solid 1px #bbb;height:150px;resize: vertical;}
 .properties_editor .properties .inp_container textarea:focus{border-color:#666;}
 .properties_editor .properties .inp_container select{width:100%;padding:5px;}
