@@ -4,6 +4,77 @@ var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
 
+var wysihtml_functions = [
+    {
+        "command":"bold",
+        "title":"CTRL+B",
+        "icon":"format_bold",
+        "rules":
+        {
+            "tags":{"b": 1}
+        }
+    },
+    {
+        "command":"italic",
+        "title":"CTRL+I",
+        "icon":"format_italic",
+        "rules":
+        {
+            "tags":{"i": 1}
+        }
+    },
+    "spacer",
+    {
+        "command":"justifyLeft",
+        "title":"Aligner à gauche",
+        "icon":"format_align_left",
+        "rules":
+        {
+            "classes": {"wysiwyg-text-align-left": 1},
+            "tags":{"div":1}
+        }
+    },
+    {
+        "command":"justifyCenter",
+        "title":"Centrer",
+        "icon":"format_align_center",
+        "rules":
+        {
+            "classes": {"wysiwyg-text-align-center": 1},
+            "tags":{"div":1}
+        }
+    },
+    {
+        "command":"justifyRight",
+        "title":"Aligner à droite",
+        "icon":"format_align_right",
+        "rules":
+        {
+            "classes": {"wysiwyg-text-align-right": 1},
+            "tags":{"div":1}
+        }
+    },
+    "spacer",
+    {
+        "command":"insertUnorderedList",
+        "title":"Insérer une liste",
+        "icon":"format_list_bulleted",
+        "rules":
+        {
+            "tags":{"ul": 1,"li":1}
+        }
+    },
+    {
+        "command":"insertOrderedList",
+        "title":"Insérer une liste ordonnée",
+        "icon":"format_list_numbered",
+        "rules":
+        {
+            "tags":{"ol": 1,"li":1}
+        }
+    }
+];
+
 var type_list = {
     "diagnostic":"D&eacute;marche diagnostique",
     "reflexion": "&Eacute;valuation",
@@ -21,6 +92,27 @@ var note_list = {
     "3":"3",
     "4":"4"
 };
+
+var wysihtmlParserRules = {};
+
+wysihtml_functions.forEach(function(pRule){
+    var r, k;
+    for(var i in pRule.rules)
+    {
+        if(!pRule.rules.hasOwnProperty(i))
+            continue;
+        if(!wysihtmlParserRules[i])
+            wysihtmlParserRules[i] = {};
+        r = pRule.rules[i];
+        for(k in r)
+        {
+            if(!r.hasOwnProperty(k))
+                continue;
+            wysihtmlParserRules[i][k] = r[k];
+        }
+    }
+
+});
 
 function Draggable(pElement, pTreeEditor)
 {
@@ -385,7 +477,6 @@ Class.define(Block,[Resizable], {
         var dim;
         switch(pName)
         {
-            case "title":
             case "description":
                 pValue = pValue.replace(/\n/g, "<br/>");
                 this.element.querySelector('foreignObject div[data-name="'+pName+'"]').innerHTML = pValue;
@@ -444,17 +535,11 @@ Class.define(Block,[Resizable], {
     getEditableProperties:function()
     {
         var properties = {
-            "title":{
-                "label":"Titre du block",
-                "type":"text",
-                "mode":[TreeEditor.CONTENT_MODE],
-                "value":this.element.querySelector('foreignObject div[data-name="title"]').textContent
-            },
             "description": {
-                "label":"Description",
+                "label":"Contenu",
                 "type":"html",
                 "mode":[TreeEditor.CONTENT_MODE],
-                "value":this.element.querySelector('foreignObject div[data-name="description"]').textContent
+                "value":this.element.querySelector('foreignObject div[data-name="description"]').innerHTML
             },
             "type": {
                 "label":"Type de block",
@@ -537,7 +622,7 @@ Class.define(Block,[Resizable], {
             if(!this.next.hasOwnProperty(i))
                 continue;
             bl = this.treeEditor.dispatchers[i];
-            title = bl.element.querySelector('foreignObject div[data-name="title"]').textContent;
+            title = bl.element.querySelector('foreignObject div[data-name="description"]').textContent;
             label = title;
             if(label.length>30)
                 label = label.substr(0, 27)+"...";
@@ -561,9 +646,11 @@ Class.define(Block,[Resizable], {
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
                 continue;
-            title = this.treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="title"]');
+            title = this.treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="description"]');
             if(!title)
                 continue;
+            if(title.length>30)
+                title = title.substr(0, 27)+"...";
             further_blocks[this.treeEditor.dispatchers[i].element.getAttribute("id")] = title.innerHTML;
             has_options = true;
         }
@@ -1117,6 +1204,7 @@ function PropertiesEditor(pElement, pTreeEditor)
     this.element = pElement;
     var normalMove = 1;
     var tiledMove = 15;
+    this.rte = [];
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.RIGHT], this.move.proxy(this), [normalMove, 0]);
@@ -1144,7 +1232,7 @@ Class.define(PropertiesEditor, [], {
 
         var container = this.element.querySelector(".properties");
 
-        container.innerHTML = "";
+        this.resetProperties();
 
         this.handleSelectionProperties();
 
@@ -1187,8 +1275,31 @@ Class.define(PropertiesEditor, [], {
                     handleInput(input);
                     break;
                 case "html":
-                    input = Element.create("textarea", {"id":id_inp, "name":id_inp, "innerHTML":prop.value, "data-prop":i}, inp_ct);
-                    handleInput(input);
+                    var toolbar = Element.create("div", {"id":"toolbar_"+id_inp, "style":"display: none", "class":"toolbar"}, inp_ct);
+
+                    var f;
+                    for(k in wysihtml_functions)
+                    {
+                        if(!wysihtml_functions.hasOwnProperty(k))
+                            continue;
+                        f = wysihtml_functions[k];
+                        if(f === "spacer")
+                        {
+                            Element.create("span", {"class":"spacer"}, toolbar);
+                            continue;
+                        }
+                        Element.create("a", {"data-wysihtml-command": f.command, "title": f.title, "class":"material-icons", "innerHTML": f.icon}, toolbar);
+                    }
+                    input = Element.create("div", {"id":id_inp, "name":id_inp, "innerHTML":prop.value, "data-prop":i}, inp_ct);
+                    var editor = new wysihtml.Editor(id_inp, {
+                        toolbar: "toolbar_"+id_inp,
+                        stylesheets:["css/TreeEditor.css"],
+                        parserRules: wysihtmlParserRules
+                    });
+                    editor.on("change", function(){
+                        pElement.setProperty(this.editableElement.getAttribute("data-prop"), this.getValue(false));
+                    });
+                    this.rte.push(editor);
                     break;
                 case "select":
                     input = Element.create("select", {"id":id_inp, "name":id_inp, "data-prop":i}, inp_ct);
@@ -1280,13 +1391,29 @@ Class.define(PropertiesEditor, [], {
             }
         }
     },
+    resetProperties:function()
+    {
+        var container = this.element.querySelector(".properties");
+        if(this.rte.length)
+        {
+            var b = this.last_block;
+            this.rte.forEach(function(pRte){
+                if(b)
+                {
+                    b.setProperty(pRte.editableElement.getAttribute("data-prop"), pRte.getValue(false));
+                }
+                pRte.destroy();
+            });
+        }
+        this.rte = [];
+        container.innerHTML = "";
+    },
     reselectBlock:function()
     {
         var b = this.treeEditor.svg.querySelector(".draggable."+PropertiesEditor.CLASS);
         if(!b)
         {
-            var container = this.element.querySelector(".properties");
-            container.innerHTML = "";
+            this.resetProperties();
             this.handleSelectionProperties();
             return;
         }
@@ -1295,9 +1422,8 @@ Class.define(PropertiesEditor, [], {
     deselect:function()
     {
         this.treeEditor.svg.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
-        var container = this.element.querySelector(".properties");
+        this.resetProperties();
         this.last_block = null;
-        container.innerHTML = "";
     },
     move:function(pVector)
     {
@@ -2012,8 +2138,7 @@ Class.define(TreeEditor, [EventDispatcher],
         var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
 
         var cache = Element.create("div", {"class":"cache"}, fo);
-        Element.create("div", {"data-name":"title", "data-type":"string", "innerHTML":"Titre "+index}, cache);
-        Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Editer la description"}, cache);
+        Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
 
         this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
 

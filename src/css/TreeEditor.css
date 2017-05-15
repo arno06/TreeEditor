@@ -11,7 +11,6 @@ svg .draggable rect{cursor: pointer;stroke: rgba(0, 0, 0, 1);stroke-width: 2px;}
 
 svg foreignObject .cache{width:calc(100% - 5px);height:100%; overflow:auto;}
 svg foreignObject .cache *{pointer-events: none;}
-svg foreignObject div[data-name="title"]{}
 svg foreignObject div[data-name="description"]{font-size:12px;}
 svg foreignObject *[data-empty="true"]{color:#666;}
 
@@ -72,10 +71,10 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties .add_link_handler select{padding:7px;width:calc(100% - 58px);}
 .properties_editor .properties .add_link_handler button{display:inline-block;width:58px;text-align: center;}
 
-.properties_editor .properties ul{padding:0;margin:0;list-style:none;}
-.properties_editor .properties ul li{padding:5px;}
-.properties_editor .properties ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
-.properties_editor .properties ul li span[data-remove]:hover{transform:rotate(90deg);}
+.properties_editor .properties .inp_container>ul{padding:0;margin:0;list-style:none;}
+.properties_editor .properties .inp_container>ul li{padding:5px;}
+.properties_editor .properties .inp_container>ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
+.properties_editor .properties .inp_container>ul li span[data-remove]:hover{transform:rotate(90deg);}
 
 .properties_editor .properties ul.next li{background:#fafafa;border-bottom:solid 1px #eee;}
 .properties_editor .properties ul.notes li,
@@ -87,3 +86,16 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties .buttons{text-align: center;padding:2px 0;}
 .properties_editor .properties .buttons span.spacer{display:inline-block;width:10px;}
 .properties_editor .properties .buttons button{background:none;border:none;cursor:pointer;}
+
+.wysihtml-editor{background:#fff;font-size:13px;height:200px;padding:3px;border:solid 1px #bbb;}
+
+.toolbar .wysihtml-command-active{background:#fafafa;}
+.toolbar a{color:#000;text-decoration: none;}
+.toolbar .spacer{display:inline-block;width:10px;}
+
+.cache ul, .wysihtml-editor ul{margin:0;padding:0 35px;}
+.cache ul li, .wysihtml-editor ul li{padding:0;}
+
+.wysiwyg-text-align-center {text-align: center;}
+.wysiwyg-text-align-left {text-align: left;}
+.wysiwyg-text-align-right {text-align: right;}
