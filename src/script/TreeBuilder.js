@@ -1237,21 +1237,21 @@ Class.define(PropertiesEditor, [], {
 
         inp_ct = Element.create("div", {"class":"actions"}, container);
         input = Element.create("button", {}, inp_ct);
-        Element.create("span", {"class":"material-icons", "innerHTML":"&#xE145;"}, input);
+        Element.create("span", {"class":"material-icons", "innerHTML":"add"}, input);
         Element.create("span", {"innerHTML":"Ajouter un block"}, input);
         input.addEventListener("click", function(){
             treeEditor.deselectAll();
             treeEditor.createBlock();
         }, false);
         input = Element.create("button", {"class":"delete"}, inp_ct);
-        Element.create("span", {"class":"material-icons", "innerHTML":"&#xE872;"}, input);
+        Element.create("span", {"class":"material-icons", "innerHTML":"delete"}, input);
         Element.create("span", {"innerHTML":"Supprimer le block"}, input);
         input.addEventListener("click", function(e){
             ref.deselect();
             pElement.remove();
         }, false);
     },
-    handleSelectionProperties:function(e)
+    handleSelectionProperties:function()
     {
         var selectedElements = this.treeEditor.selector.selectedElements();
         if(selectedElements.length < 2 || this.treeEditor.contentMode())
@@ -1284,7 +1284,12 @@ Class.define(PropertiesEditor, [], {
     {
         var b = this.treeEditor.svg.querySelector(".draggable."+PropertiesEditor.CLASS);
         if(!b)
+        {
+            var container = this.element.querySelector(".properties");
+            container.innerHTML = "";
+            this.handleSelectionProperties();
             return;
+        }
         this.edit(this.treeEditor.dispatchers[b.getAttribute("id")]);
     },
     deselect:function()
@@ -1704,7 +1709,7 @@ Class.define(DragSelector, [EventDispatcher], {
         {
             buttonsRows.push({
                 "label":"Redimensionner les éléments", "buttons":[
-                    {"title":"Même larger", "icon":"swap_horiz", "method":this.resize.proxy(this), "param":"horiz"},
+                    {"title":"Même largeur", "icon":"swap_horiz", "method":this.resize.proxy(this), "param":"horiz"},
                     {"title":"Même hauteur", "icon":"swap_vert", "method":this.resize.proxy(this), "param":"vert"}
                 ]
             });
