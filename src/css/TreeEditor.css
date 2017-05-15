@@ -85,4 +85,5 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 
 .properties_editor .properties h2{font-size:18px;line-height: 18px;margin-bottom:0;margin-top:30px;text-align:center;}
 .properties_editor .properties .buttons{text-align: center;padding:2px 0;}
+.properties_editor .properties .buttons span.spacer{display:inline-block;width:10px;}
 .properties_editor .properties .buttons button{background:none;border:none;cursor:pointer;}

@@ -1133,10 +1133,10 @@ function PropertiesEditor(pElement, pTreeEditor)
 Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
-        this.last_block = pElement;
+        this.deselect();
         var treeEditor = this.treeEditor;
         var ref = this;
-        this.deselect();
+        this.last_block = pElement;
         treeEditor.last_block = pElement.element.getAttribute("id");
         pElement.element.classList.add(PropertiesEditor.CLASS);
 
@@ -1257,8 +1257,6 @@ Class.define(PropertiesEditor, [], {
         if(selectedElements.length < 2 || this.treeEditor.contentMode())
             return;
 
-        Element.create("h2", {"innerHTML":"Pour la sélection"}, this.element.querySelector(".properties"));
-
         var buttonsRow = this.treeEditor.selector.getSelectionProperties();
 
         var inpContainer, label, buttonContainer, button, row, j, maxj, icon, b;
@@ -1271,6 +1269,11 @@ Class.define(PropertiesEditor, [], {
             for(j = 0, maxj = row.buttons.length; j<maxj; j++)
             {
                 b = row.buttons[j];
+                if(b === "spacer")
+                {
+                    Element.create("span", {"class":"spacer"}, buttonContainer);
+                    continue;
+                }
                 button = Element.create("button", {"title": b.title, "data-param": b.param}, buttonContainer);
                 icon = Element.create("i", {"class":"material-icons", "innerHTML": b.icon}, button);
                 button.addEventListener("click", b.method, false);
@@ -1288,6 +1291,7 @@ Class.define(PropertiesEditor, [], {
     {
         this.treeEditor.svg.querySelectorAll(".draggable."+PropertiesEditor.CLASS).forEach(function(pEl){pEl.classList.remove(PropertiesEditor.CLASS);});
         var container = this.element.querySelector(".properties");
+        this.last_block = null;
         container.innerHTML = "";
     },
     move:function(pVector)
@@ -1437,6 +1441,37 @@ Class.define(DragSelector, [EventDispatcher], {
             if(b.isSelectable())
                 DragSelector.select(b);
         }
+    },
+    resize:function(e)
+    {
+        if(!e || !this.treeEditor.propertiesEditor.last_block)
+            return;
+
+        var kind = e.currentTarget.getAttribute("data-param");
+        if(!kind)
+            return;
+
+        var setW = function(pDummy, pContext)
+        {
+            pContext.setDimensions(pDummy.value, pContext.getDimensions().height);
+        };
+        var setH = function(pDummy, pContext)
+        {
+            pContext.setDimensions(pContext.getDimensions().width, pDummy.value);
+        };
+
+        var ref = this;
+        var ref_block = this.treeEditor.propertiesEditor.last_block;
+        var selectedElements = this.selectedElements();
+
+        var prop = kind=="horiz"?"width":"height";
+        var handler = kind=="horiz"?setW:setH;
+        var ref_value = ref_block.getDimensions()[prop];
+
+        selectedElements.forEach(function(pElement){
+            var b = ref.treeEditor.dispatchers[pElement.getAttribute("id")];
+            ref.treeEditor.animate(b, prop, b.getDimensions()[prop], ref_value, 1, handler);
+        });
     },
     distribute:function(e)
     {
@@ -1642,12 +1677,11 @@ Class.define(DragSelector, [EventDispatcher], {
     getSelectionProperties:function()
     {
         var buttonsRows = [
-            {"label":"Alignement horizontal", "buttons":[
+            {"label":"Alignement", "buttons":[
                 {"title":"Aligner les élements à gauche", "icon":"format_align_left", "method":this.align.proxy(this), "param":"left"},
                 {"title":"Centrer les élements", "icon":"format_align_center", "method":this.align.proxy(this), "param":"center"},
-                {"title":"Aligner les élements à droite", "icon":"format_align_right", "method":this.align.proxy(this), "param":"right"}
-            ]},
-            {"label":"Alignement vertical", "buttons":[
+                {"title":"Aligner les élements à droite", "icon":"format_align_right", "method":this.align.proxy(this), "param":"right"},
+                "spacer",
                 {"title":"Aligner les élements en haut", "icon":"vertical_align_top", "method":this.align.proxy(this), "param":"top"},
                 {"title":"Centrer les élements", "icon":"vertical_align_center", "method":this.align.proxy(this), "param":"centerV"},
                 {"title":"Aligner les élements en bas", "icon":"vertical_align_bottom", "method":this.align.proxy(this), "param":"bottom"}
@@ -1655,12 +1689,24 @@ Class.define(DragSelector, [EventDispatcher], {
         ];
 
         if(this.selectedElements().length>2)
+        {
             buttonsRows.push({
                 "label":"Répartition des éléments", "buttons":[
                     {"title":"Répartition horizontale", "icon":"more_horiz", "method":this.distribute.proxy(this), "param":"horiz"},
                     {"title":"Répartition verticale", "icon":"more_vert", "method":this.distribute.proxy(this), "param":"vert"}
                 ]
             });
+        }
+
+        if(this.treeEditor.propertiesEditor.last_block)
+        {
+            buttonsRows.push({
+                "label":"Redimensionner les éléments", "buttons":[
+                    {"title":"Même larger", "icon":"swap_horiz", "method":this.resize.proxy(this), "param":"horiz"},
+                    {"title":"Même hauteur", "icon":"swap_vert", "method":this.resize.proxy(this), "param":"vert"}
+                ]
+            });
+        }
 
         return buttonsRows;
     }
