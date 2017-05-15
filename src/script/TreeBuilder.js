@@ -93,7 +93,7 @@ var note_list = {
     "4":"4"
 };
 
-var wysihtmlParserRules = {};
+var wysihtmlParserRules = {"tags":{"br":1}};
 
 wysihtml_functions.forEach(function(pRule){
     var r, k;
@@ -2100,13 +2100,12 @@ Class.define(TreeEditor, [EventDispatcher],
             newIndex = ref.getNextBlockIndex();
             newGroup = pElement.cloneNode(true);
             newGroup.setAttribute("id", GROUP_BASE_ID+newIndex);
-            ref.svg.appendChild(newGroup);
+            ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
 
             newBlock = new Block(newGroup, ref);
 
             if(block)
                 newBlock.setPosition(block.getX()+10, block.getY()+10);
-
             ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
             newSelection.push(newBlock);
         });
