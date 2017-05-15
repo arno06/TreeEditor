@@ -140,7 +140,7 @@ Class.define(Draggable, [EventDispatcher], {
             pX = Math.min(t.getX() + t.getWidth(), pX);
             pY = Math.max(t.getY(), pY);
             pY = Math.min(t.getY() + t.getHeight(), pY);
-            var newRestraint = {x:Math.round(((pX - t.getX()) / t.getWidth())*100)+"%", y:Math.round(((pY - t.getY()) / t.getHeight()) * 100)+"%"};
+            var newRestraint = {x:(Math.round(((pX - t.getX()) / t.getWidth())*1000)/10)+"%", y:(Math.round(((pY - t.getY()) / t.getHeight()) * 1000)/10)+"%"};
             if(["left", "right"].indexOf(restraint[1])>-1)
             {
                 if(restraint[1]== "left")
@@ -1470,6 +1470,8 @@ Class.define(DragSelector, [EventDispatcher], {
 
         selectedElements.forEach(function(pElement){
             var b = ref.treeEditor.dispatchers[pElement.getAttribute("id")];
+            if(!(b instanceof Block))
+                return;
             ref.treeEditor.animate(b, prop, b.getDimensions()[prop], ref_value, 1, handler);
         });
     },
