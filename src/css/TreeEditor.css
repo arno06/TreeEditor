@@ -38,6 +38,15 @@ svg .draggable.edit rect{stroke: rgb(99, 218, 101);}
 svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
 svg.content_mode circle, svg.content_mode path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 svg.content_mode foreignObject div.cache{overflow:hidden;}
+svg.design_mode{
+    background-color: #e3f6ff;
+    background-image: linear-gradient(white 2px, transparent 2px),
+    linear-gradient(90deg, white 2px, transparent 2px),
+    linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);
+    background-size:100px 100px, 100px 100px, 20px 20px, 20px 20px;
+    background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;
+}
 
 svg line.segment{stroke:black;stroke-width:2px;}
 

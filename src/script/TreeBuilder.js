@@ -1621,14 +1621,18 @@ Class.define(DragSelector, [EventDispatcher], {
         var getPropComp = horizontal?"width":"height";
         var prop = horizontal?"x":"y";
 
+        var treeEditor = this.treeEditor;
+
         var setX = function(pDummy, pContext)
         {
-            pContext.setX(pDummy.value);
+            var s = treeEditor.getScroll();
+            pContext.setPosition(s.x + Number(pDummy.value), s.y + pContext.getY());
         };
 
         var setY = function(pDummy, pContext)
         {
-            pContext.setY(pDummy.value);
+            var s = treeEditor.getScroll();
+            pContext.setPosition(s.x + pContext.getX(), s.y + Number(pDummy.value));
         };
 
         var handler = horizontal?setX:setY;
@@ -1724,14 +1728,18 @@ Class.define(DragSelector, [EventDispatcher], {
         if(!alignment)
             return;
 
+        var treeEditor = this.treeEditor;
+
         var setX = function(pDummy, pContext)
         {
-            pContext.setX(pDummy.value);
+            var s = treeEditor.getScroll();
+            pContext.setPosition(s.x + Number(pDummy.value), s.y + pContext.getY());
         };
 
         var setY = function(pDummy, pContext)
         {
-            pContext.setY(pDummy.value);
+            var s = treeEditor.getScroll();
+            pContext.setPosition(s.x + pContext.getX(), s.y + Number(pDummy.value));
         };
 
         var horizontal = ["left","right","center"].indexOf(alignment)!==-1;
@@ -2094,6 +2102,7 @@ Class.define(TreeEditor, [EventDispatcher],
         var newSelection = [];
         var ref = this;
         var block, newGroup, newBlock, newIndex;
+        var scroll = this.getScroll();
         TreeEditor.stash.forEach(function(pElement)
         {
             block = ref.dispatchers[pElement.getAttribute("id")];
@@ -2105,7 +2114,7 @@ Class.define(TreeEditor, [EventDispatcher],
             newBlock = new Block(newGroup, ref);
 
             if(block)
-                newBlock.setPosition(block.getX()+10, block.getY()+10);
+                newBlock.setPosition(scroll.x + block.getX()+10, scroll.y + block.getY()+10);
             ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
             newSelection.push(newBlock);
         });
