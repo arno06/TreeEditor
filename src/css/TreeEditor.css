@@ -35,18 +35,13 @@ svg circle.draggable[data-dragdrafted="true"]{stroke-width:1px;stroke: rgb(51, 1
 
 svg .draggable.edit rect{stroke: rgb(99, 218, 101);}
 
+svg g.draggable.highlight rect{stroke-width: 3px;stroke:#c70036;}
+
 svg circle.anchor{fill:rgba(0, 0, 0, .10);cursor:pointer;}
 svg.content_mode circle, svg.content_mode path[data-role="resize"]{ fill:rgba(0, 0, 0, 0);pointer-events: none;}
 svg.content_mode foreignObject div.cache{overflow:hidden;}
-svg.design_mode{
-    background-color: #e3f6ff;
-    background-image: linear-gradient(white 2px, transparent 2px),
-    linear-gradient(90deg, white 2px, transparent 2px),
-    linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px);
-    background-size:100px 100px, 100px 100px, 20px 20px, 20px 20px;
-    background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;
-}
+svg{background-color:#fff;transition:all .5s;}
+svg.design_mode{background-color: #c0ebff;background-image: linear-gradient(white 2px, transparent 2px),linear-gradient(90deg, white 2px, transparent 2px),linear-gradient(rgba(255,255,255,.6) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,.6) 1px, transparent 1px); background-size:100px 100px, 100px 100px, 20px 20px, 20px 20px;background-position:-2px -2px, -2px -2px, -1px -1px, -1px -1px;}
 
 svg line.segment{stroke:black;stroke-width:2px;}
 
@@ -80,8 +75,16 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties .add_link_handler select{padding:7px;width:calc(100% - 58px);}
 .properties_editor .properties .add_link_handler button{display:inline-block;width:58px;text-align: center;}
 
+.properties_editor .properties .inp_container .combobox{position:relative;}
+.properties_editor .properties .inp_container .combobox>span{display:block;width:calc(100% - 10px);padding:5px;background:#fff;font-size:14px;border:solid 1px #aaa;cursor:default;position:relative;}
+.properties_editor .properties .inp_container .combobox>span i{position:absolute;right:0;top:2px;}
+.properties_editor .properties .inp_container .combobox>ul{border:solid 1px #217ebd;padding:0;margin:0;list-style:none;position:absolute;top:28px;width:100%;}
+.properties_editor .properties .inp_container .combobox>ul li{display:block;padding:5px;background:#fff;margin:0;cursor:default;font-size:14px;}
+.properties_editor .properties .inp_container .combobox>ul li:hover{background:#217ebd;color:#fff;}
+
 .properties_editor .properties .inp_container>ul{padding:0;margin:0;list-style:none;}
 .properties_editor .properties .inp_container>ul li{padding:5px;}
+.properties_editor .properties .inp_container>ul li span:first-of-type{pointer-events: none;}
 .properties_editor .properties .inp_container>ul li span[data-remove]{font-size:18px;float:right;cursor:pointer;transition: all .3s;}
 .properties_editor .properties .inp_container>ul li span[data-remove]:hover{transform:rotate(90deg);}
 

@@ -626,7 +626,7 @@ Class.define(Block,[Resizable], {
             label = title;
             if(label.length>30)
                 label = label.substr(0, 27)+"...";
-            next[i] = {"label":label, "extra":this.next[i], "title":title, "method":"removeLink"};
+            next[i] = {"label":label, "extra":this.next[i], "title":title, "method":"removeLink", "overHandler":this.toggleHighlightBlockFromLink.proxy(this), "outHandler":this.toggleHighlightBlockFromLink.proxy(this)};
             hasNext = true;
         }
         if(hasNext)
@@ -660,12 +660,30 @@ Class.define(Block,[Resizable], {
             properties.newLink = {
                 "label":"Ajouter un lien vers",
                 "mode":[TreeEditor.DESIGN_MODE],
-                "type":"select",
+                "type":"combobox",
                 "data":further_blocks
             };
         }
 
         return properties;
+    },
+    toggleHighlightBlockFromLink:function(e)
+    {
+        var current_link_id = e.currentTarget.querySelector("span.remove").getAttribute("data-remove");
+        var method = e.type === "mouseover"?"add":"remove";
+        var link_id;
+        for(var i in this.next)
+        {
+            if(!this.next.hasOwnProperty(i))
+                continue;
+            link_id = this.next[i];
+
+            if(link_id == current_link_id)
+            {
+                this.treeEditor.svg.querySelector("#"+i).classList[method]("highlight");
+                return;
+            }
+        }
     },
     nextBlockRemovedHandler:function(e){
         var id = e.currentTarget.element.getAttribute("id");
@@ -1301,6 +1319,50 @@ Class.define(PropertiesEditor, [], {
                     });
                     this.rte.push(editor);
                     break;
+                case "combobox":
+                    var combobox = Element.create("div", {"class":"combobox"}, inp_ct);
+
+                    none = prop.data.none;
+
+                    if(!none)
+                    {
+                        prop.data.none = "Sélectionner une valeur";
+                    }
+
+                    var s = Element.create("span", {"innerHTML":prop.data.none}, combobox);
+                    Element.create("i", {"class":"material-icons", "innerHTML":"arrow_drop_down"}, s);
+
+                    var hideUl = function(e){
+                        if(e.target.nodeName.toLowerCase() == "li" && e.target.getAttribute("data-combobox-value"))
+                            return;
+                        var ul = document.querySelector(".combobox ul.displayed");
+                        if(ul)
+                        {
+                            ul.style.display = "none";
+                            ul.classList.remove("displayed");
+                        }
+                        document.removeEventListener("mousedown", hideUl, false);
+                    };
+
+                    s.addEventListener("click", function(e){
+                        e.currentTarget.parentNode.querySelector("ul").style.display = "";
+                        e.currentTarget.parentNode.querySelector("ul").classList.add("displayed");
+                        document.addEventListener("mousedown", hideUl, false);
+                    });
+
+                    ul = Element.create("ul", {style:"display:none"}, combobox);
+
+                    for(k in prop.data)
+                    {
+                        if(!prop.data.hasOwnProperty(k))
+                            continue;
+                        li = Element.create("li", {"innerHTML":prop.data[k], "data-combobox-value":k, "data-prop":i}, ul);
+                        li.addEventListener("click", function(e){
+                            pElement.setProperty(e.currentTarget.getAttribute("data-prop"), e.currentTarget.getAttribute("data-combobox-value"));
+                        });
+                    }
+
+                    break;
                 case "select":
                     input = Element.create("select", {"id":id_inp, "name":id_inp, "data-prop":i}, inp_ct);
                     input.addEventListener("change", changed_cb, false);
@@ -1330,8 +1392,16 @@ Class.define(PropertiesEditor, [], {
                         if(!prop.data.hasOwnProperty(k))
                             continue;
                         opt = prop.data[k];
-                        li = Element.create("li", {}, ul);
-                        Element.create("span", {"innerHTML":opt.label, "title":opt.title}, li);
+                        li = Element.create("li", {"title":opt.title}, ul);
+                        if(opt.overHandler)
+                        {
+                            li.addEventListener("mouseover", opt.overHandler, true);
+                        }
+                        if(opt.outHandler)
+                        {
+                            li.addEventListener("mouseout", opt.outHandler, true);
+                        }
+                        Element.create("span", {"innerHTML":opt.label}, li);
                         action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":opt.extra, "class":"remove", "data-method":opt.method}, li);
                         action.addEventListener("click", function(e){
                             var t = e.currentTarget;
