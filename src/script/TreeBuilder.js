@@ -3,6 +3,8 @@ var GROUP_BASE_ID = "group-";
 var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
+var BLOCK_MAX_WIDTH = 60;
+var BLOCK_MAX_HEIGHT = 35;
 
 var wysihtml_functions = [
     {
@@ -444,8 +446,8 @@ Class.define(Resizable, [Draggable], {
     },
     setDimensions:function(pWidth, pHeight)
     {
-        pWidth = Math.max(pWidth, 90);
-        pHeight = Math.max(pHeight, 55);
+        pWidth = Math.max(pWidth, BLOCK_MAX_WIDTH);
+        pHeight = Math.max(pHeight, BLOCK_MAX_HEIGHT);
         var rect = this.element.querySelector("rect");
         rect.setAttribute("width", Math.round(pWidth));
         rect.setAttribute("height", Math.round(pHeight));
@@ -509,6 +511,7 @@ Class.define(Block,[Resizable], {
             case "newLink":
                 if(pValue != "none")
                 {
+                    this.treeEditor.toggleHighlightBlock(pValue, "remove");
                     this.treeEditor.createLink(this.element.getAttribute("id"), pValue);
                     this.select();
                 }
@@ -676,10 +679,7 @@ Class.define(Block,[Resizable], {
     {
         var current_link_id = e.currentTarget.getAttribute("data-combobox-value");
         var method = e.type === "mouseover"?"add":"remove";
-        if(this.treeEditor.svg.querySelector("#"+current_link_id))
-        {
-            this.treeEditor.svg.querySelector("#"+current_link_id).classList[method]("highlight");
-        }
+        this.treeEditor.toggleHighlightBlock(current_link_id, method);
     },
     toggleHighlightBlockFromLink:function(e)
     {
@@ -694,7 +694,7 @@ Class.define(Block,[Resizable], {
 
             if(link_id == current_link_id)
             {
-                this.treeEditor.svg.querySelector("#"+i).classList[method]("highlight");
+                this.treeEditor.toggleHighlightBlock(i, method);
                 return;
             }
         }
@@ -725,6 +725,7 @@ Class.define(Block,[Resizable], {
                 continue;
             if(this.next[i] === pLink)
             {
+                this.treeEditor.toggleHighlightBlock(i, "remove");
                 this.next[i] = null;
                 delete this.next[i];
                 this.treeEditor.links[pLink].remove();
@@ -2247,6 +2248,12 @@ Class.define(TreeEditor, [EventDispatcher],
         this.createLink(this.last_block, g.getAttribute("id"));
 
         this.dispatchers[g.getAttribute("id")].select();
+    },
+    toggleHighlightBlock:function(pId, pMethod)
+    {
+        if(!this.svg.querySelector("#"+pId))
+            return;
+        this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
     },
     getScroll:function()
     {

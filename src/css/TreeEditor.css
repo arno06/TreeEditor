@@ -78,7 +78,7 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 .properties_editor .properties .inp_container .combobox{position:relative;}
 .properties_editor .properties .inp_container .combobox>span{display:block;width:calc(100% - 10px);padding:5px;background:#fff;font-size:14px;border:solid 1px #aaa;cursor:default;position:relative;}
 .properties_editor .properties .inp_container .combobox>span i{position:absolute;right:0;top:2px;}
-.properties_editor .properties .inp_container .combobox>ul{border:solid 1px #217ebd;padding:0;margin:0;list-style:none;position:absolute;top:28px;width:100%;}
+.properties_editor .properties .inp_container .combobox>ul{border:solid 1px #217ebd;padding:0;margin:0;list-style:none;position:absolute;top:28px;width:100%;max-height:150px;overflow:auto;}
 .properties_editor .properties .inp_container .combobox>ul li{display:block;padding:5px;background:#fff;margin:0;cursor:default;font-size:14px;}
 .properties_editor .properties .inp_container .combobox>ul li:hover{background:#217ebd;color:#fff;}
 
