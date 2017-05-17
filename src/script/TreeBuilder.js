@@ -90,7 +90,11 @@ var note_list = {
     "1":"1",
     "2":"2",
     "3":"3",
-    "4":"4"
+    "4":"4",
+    "5":"5",
+    "6":"6",
+    "7":"7",
+    "8":"8"
 };
 
 var wysihtmlParserRules = {"tags":{"br":1}};
@@ -535,18 +539,18 @@ Class.define(Block,[Resizable], {
     getEditableProperties:function()
     {
         var properties = {
+            "type": {
+                "label":"Type de block",
+                "mode":[TreeEditor.DESIGN_MODE,TreeEditor.CONTENT_MODE],
+                "type":"select",
+                "data":type_list,
+                "value":this.element.getAttribute("data-type")
+            },
             "description": {
                 "label":"Contenu",
                 "type":"html",
                 "mode":[TreeEditor.CONTENT_MODE],
                 "value":this.element.querySelector('foreignObject div[data-name="description"]').innerHTML
-            },
-            "type": {
-                "label":"Type de block",
-                "mode":[TreeEditor.DESIGN_MODE],
-                "type":"select",
-                "data":type_list,
-                "value":this.element.getAttribute("data-type")
             },
             "width": {
                 "label":"Largeur",
@@ -633,7 +637,7 @@ Class.define(Block,[Resizable], {
         {
             properties.next = {
                 "label":"Liens sortants",
-                "mode":[TreeEditor.DESIGN_MODE],
+                "mode":[TreeEditor.DESIGN_MODE,TreeEditor.CONTENT_MODE],
                 "type":"list",
                 "data":next
             };
@@ -641,7 +645,7 @@ Class.define(Block,[Resizable], {
 
         ignore = [this.element.getAttribute("id")].concat(this.getLinkedBlocks());
         has_options = false;
-        var further_blocks = {"none":"Sélectionner un block"};
+        var further_blocks = {"none":{"label":"Sélectionner un block"}};
         for(i in this.treeEditor.dispatchers)
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
@@ -649,9 +653,10 @@ Class.define(Block,[Resizable], {
             title = this.treeEditor.dispatchers[i].element.querySelector('foreignObject *[data-name="description"]');
             if(!title)
                 continue;
+            title = title.textContent;
             if(title.length>30)
                 title = title.substr(0, 27)+"...";
-            further_blocks[this.treeEditor.dispatchers[i].element.getAttribute("id")] = title.innerHTML;
+            further_blocks[this.treeEditor.dispatchers[i].element.getAttribute("id")] = {"label":title,"overHandler":this.toggleHighlightBlock.proxy(this), "outHandler":this.toggleHighlightBlock.proxy(this)};
             has_options = true;
         }
 
@@ -659,13 +664,22 @@ Class.define(Block,[Resizable], {
         {
             properties.newLink = {
                 "label":"Ajouter un lien vers",
-                "mode":[TreeEditor.DESIGN_MODE],
+                "mode":[TreeEditor.DESIGN_MODE, TreeEditor.CONTENT_MODE],
                 "type":"combobox",
                 "data":further_blocks
             };
         }
 
         return properties;
+    },
+    toggleHighlightBlock:function(e)
+    {
+        var current_link_id = e.currentTarget.getAttribute("data-combobox-value");
+        var method = e.type === "mouseover"?"add":"remove";
+        if(this.treeEditor.svg.querySelector("#"+current_link_id))
+        {
+            this.treeEditor.svg.querySelector("#"+current_link_id).classList[method]("highlight");
+        }
     },
     toggleHighlightBlockFromLink:function(e)
     {
@@ -1276,7 +1290,7 @@ Class.define(PropertiesEditor, [], {
 
             prop = editable_props[i];
 
-            if(prop.mode && prop.mode.indexOf(treeEditor.editor_mode))
+            if(prop.mode && prop.mode.indexOf(treeEditor.editor_mode)===-1)
                 continue;
 
             inp_ct = Element.create("div", {"class":"inp_container"}, container);
@@ -1326,10 +1340,10 @@ Class.define(PropertiesEditor, [], {
 
                     if(!none)
                     {
-                        prop.data.none = "Sélectionner une valeur";
+                        prop.data.none = {"label":"Sélectionner une valeur"};
                     }
 
-                    var s = Element.create("span", {"innerHTML":prop.data.none}, combobox);
+                    var s = Element.create("span", {"innerHTML":prop.data.none.label}, combobox);
                     Element.create("i", {"class":"material-icons", "innerHTML":"arrow_drop_down"}, s);
 
                     var hideUl = function(e){
@@ -1356,10 +1370,18 @@ Class.define(PropertiesEditor, [], {
                     {
                         if(!prop.data.hasOwnProperty(k))
                             continue;
-                        li = Element.create("li", {"innerHTML":prop.data[k], "data-combobox-value":k, "data-prop":i}, ul);
+                        li = Element.create("li", {"innerHTML":prop.data[k].label, "data-combobox-value":k, "data-prop":i}, ul);
                         li.addEventListener("click", function(e){
                             pElement.setProperty(e.currentTarget.getAttribute("data-prop"), e.currentTarget.getAttribute("data-combobox-value"));
                         });
+                        if(prop.data[k].overHandler)
+                        {
+                            li.addEventListener("mouseover", prop.data[k].overHandler, false);
+                        }
+                        if(prop.data[k].outHandler)
+                        {
+                            li.addEventListener("mouseout", prop.data[k].outHandler, false);
+                        }
                     }
 
                     break;
