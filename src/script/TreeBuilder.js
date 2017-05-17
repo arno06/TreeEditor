@@ -963,7 +963,7 @@ function Link(pFirstBlock ,pSecondBlock, pTreeEditor, pSegments)
     if(pSegments)
         this.setSegments(pSegments);
     else
-        this.addSegment(null, null, "restraintTo:"+this.firstBlock+",50%,bottom", "restraintTo:"+this.secondBlock+",50%,top");
+        this.addSegment(null, null, "restraintTo:"+this.firstBlock+","+this.treeEditor.direction.restraints[0], "restraintTo:"+this.secondBlock+","+this.treeEditor.direction.restraints[1]);
 }
 
 Class.define(Link, [], {
@@ -2044,7 +2044,7 @@ KeyboardHandler.C = 67;
 KeyboardHandler.V = 86;
 KeyboardHandler.A = 65;
 
-function TreeEditor(pContainer)
+function TreeEditor(pContainer, pDirection)
 {
     this.removeAllEventListener();
     this.container = document.querySelector(pContainer);
@@ -2056,6 +2056,8 @@ function TreeEditor(pContainer)
     this.initTree();
     this.keyboardHandler = new KeyboardHandler();
     this.selector = new DragSelector(this);
+    this.direction = pDirection&&TreeEditor.DIRECTIONS[pDirection]?pDirection:TreeEditor.VERTI;
+    this.direction = TreeEditor.DIRECTIONS[this.direction];
 
     var propertiesEditor = this.container.querySelector(".properties_editor");
     this.editor_mode = propertiesEditor.querySelector(".actions button:not(.inactive").getAttribute("data-mode");
@@ -2296,11 +2298,18 @@ TreeEditor.DESIGN_MODE = "design_mode";
 TreeEditor.CONTENT_MODE = "content_mode";
 TreeEditor.MODE_CHANGED = "evt_mode_changed";
 
-TreeEditor.create = function(pSelector)
+TreeEditor.create = function(pSelector, pDirection)
 {
-    return new TreeEditor(pSelector);
+    return new TreeEditor(pSelector, pDirection);
 };
 
 TreeEditor.stash = [];
+
+TreeEditor.HORIZ = "direction_h";
+TreeEditor.VERTI = "direction_v";
+
+TreeEditor.DIRECTIONS = {};
+TreeEditor.DIRECTIONS[TreeEditor.HORIZ] = {"restraints":["right,50%", "left,50%"]};
+TreeEditor.DIRECTIONS[TreeEditor.VERTI] = {"restraints":["50%,bottom", "50%,top"]};
 
 NodeList.prototype.forEach = Array.prototype.forEach;
