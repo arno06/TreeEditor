@@ -3,7 +3,7 @@ var GROUP_BASE_ID = "group-";
 var LINK_BASE_ID = "link_";
 var ANCHOR_BASE_ID = "anchor-";
 var SEGMENT_BASE_ID = "segment_";
-var BLOCK_MAX_WIDTH = 60;
+var BLOCK_MAX_WIDTH = 88;
 var BLOCK_MAX_HEIGHT = 35;
 
 var wysihtml_functions = [
