@@ -566,7 +566,7 @@ Class.define(Block,[Resizable], {
         };
 
         var collections = [{"labelList":"Note", "name":"notes", "method":"removeNote", "availableList":note_list, "labelDefaultAdd":"Sélectionner une note", "labelAdd":"Ajouter une note"},
-                            {"labelList":"Grade", "name":"grades", "method":"removeGrade", "availableList":grade_list, "labelDefaultAdd":"Sélectionner un grade", "labelAdd":"Ajouter un grade"}];
+            {"labelList":"Grade", "name":"grades", "method":"removeGrade", "availableList":grade_list, "labelDefaultAdd":"Sélectionner un grade", "labelAdd":"Ajouter un grade"}];
         var coll, dList, selectedData, value, i, max, ignore, addList, j, has_options;
         for(var k = 0, maxk = collections.length; k<maxk; k++)
         {
@@ -854,7 +854,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTr
 
     if(pPositionAnchor2&&pPositionAnchor2.indexOf("restraintTo:")===0)
     {
-        this.element.setAttribute("marker-end", "url(#arrow)");
+        this.element.setAttribute("marker-end", "url(#"+this.svg.querySelector("defs>marker").getAttribute("id")+")");
     }
 
     this.element.addEventListener("dblclick", this._doubleClickHandler.proxy(this), false);
@@ -880,7 +880,6 @@ Class.define(Segment, [EventDispatcher], {
             return;
 
         this.splitInfo = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
-        console.log(this.splitInfo, e.clientX, e.clientY);
         this.dispatchEvent(new Event(InteractiveEvent.SPLIT));
     },
     _updatePositionHandler:function(e)
@@ -1234,6 +1233,7 @@ function PropertiesEditor(pElement, pTreeEditor)
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.BOTTOM, KeyboardHandler.CTRL], this.move.proxy(this), [0, tiledMove]);
     this.treeEditor.addEventListener(TreeEditor.MODE_CHANGED, this.reselectBlock.proxy(this));
     this.treeEditor.selector.addEventListener(DragSelector.SELECTION_DONE, this.handleSelectionProperties.proxy(this));
+    this.deselect();
 }
 
 Class.define(PropertiesEditor, [], {
@@ -1532,6 +1532,7 @@ function DragSelector(pTreeEditor)
     this._selectUpHandler = this.selectUpHandler.proxy(this);
     this._selectMoveHandler = this.selectMoveHandler.proxy(this);
     this.svg.addEventListener("mousedown", this.mousedownHandler.proxy(this), true);
+    this.deselectAll();
 }
 
 Class.define(DragSelector, [EventDispatcher], {
@@ -1559,7 +1560,6 @@ Class.define(DragSelector, [EventDispatcher], {
 
         var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
         this.startPosition = {x: p.x, y: p.y};
-        console.log(this.startPosition);
 
         if(parentD&&DragSelector.isSelected(parentD))
         {
@@ -1657,6 +1657,8 @@ Class.define(DragSelector, [EventDispatcher], {
         if(!e || !this.treeEditor.propertiesEditor.last_block)
             return;
 
+        e.preventDefault();
+
         var kind = e.currentTarget.getAttribute("data-param");
         if(!kind)
             return;
@@ -1689,6 +1691,8 @@ Class.define(DragSelector, [EventDispatcher], {
     {
         if(!e)
             return;
+
+        e.preventDefault();
 
         var kind = e.currentTarget.getAttribute("data-param");
         if(!kind)
@@ -1799,11 +1803,11 @@ Class.define(DragSelector, [EventDispatcher], {
         if(!e)
             return;
 
+        e.preventDefault();
+
         var alignment = e.currentTarget.getAttribute("data-param");
         if(!alignment)
             return;
-
-        var treeEditor = this.treeEditor;
 
         var setX = function(pDummy, pContext)
         {
@@ -2040,8 +2044,9 @@ function TreeEditor(pContainer, pDirection)
     this.direction = TreeEditor.DIRECTIONS[this.direction];
 
     var propertiesEditor = this.container.querySelector(".properties_editor");
-    this.editor_mode = propertiesEditor.querySelector(".actions button:not(.inactive").getAttribute("data-mode");
-    this.svg.classList.add(this.editor_mode);
+
+    //reset du mode
+    this.toggleMode({currentTarget:propertiesEditor.querySelector('button[data-mode="'+TreeEditor.DESIGN_MODE+'"]'), preventDefault:function(){}});
 
     this.propertiesEditor = new PropertiesEditor(propertiesEditor, this);
     var ref = this;
@@ -2054,221 +2059,225 @@ function TreeEditor(pContainer, pDirection)
 }
 
 Class.define(TreeEditor, [EventDispatcher],
-{
-    initTree:function()
     {
-        var ref = this;
-        this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
-            ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
-            ref.last_block = pElement.getAttribute("id");
-        });
-
-        var s = {};
-        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
+        initTree:function()
         {
-            var id = pElement.getAttribute("id");
-            var anchors_id = id.split("_");
-            var anchor1 = anchors_id[1];
-            var anchor2 = anchors_id[2];
+            var ref = this;
+            this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
+                ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
+                ref.last_block = pElement.getAttribute("id");
+            });
 
-            var el1 = ref.svg.querySelector("#"+anchor1);
-            var el2 = ref.svg.querySelector("#"+anchor2);
-
-            var seg;
-
-            if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
+            var s = {};
+            this.svg.querySelectorAll("line.segment").forEach(function(pElement)
             {
-                var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                seg = {
-                    "blocks":[block1],
-                    "segments":[[anchor1, anchor2]]
-                };
-            }
-            else
-            {
-                //anchor1 shared
-                seg = s[anchor1];
-                seg.segments.push([anchor1, anchor2]);
-            }
+                var id = pElement.getAttribute("id");
+                var anchors_id = id.split("_");
+                var anchor1 = anchors_id[1];
+                var anchor2 = anchors_id[2];
 
-            if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
-            {
-                var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                seg.blocks.push(block2);
-                s[anchor1] = seg;
-            }
-            else
-            {
-                //anchor2 shared
-                s[anchor2] = seg;
-                delete s[anchor1];
-            }
-        });
+                var el1 = ref.svg.querySelector("#"+anchor1);
+                var el2 = ref.svg.querySelector("#"+anchor2);
 
-        var link_obj, k, segment_arr, segments, maxk;
-        for(var i in s)
+                var seg;
+
+                if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
+                {
+                    var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                    seg = {
+                        "blocks":[block1],
+                        "segments":[[anchor1, anchor2]]
+                    };
+                }
+                else
+                {
+                    //anchor1 shared
+                    seg = s[anchor1];
+                    seg.segments.push([anchor1, anchor2]);
+                }
+
+                if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
+                {
+                    var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                    seg.blocks.push(block2);
+                    s[anchor1] = seg;
+                }
+                else
+                {
+                    //anchor2 shared
+                    s[anchor2] = seg;
+                    delete s[anchor1];
+                }
+            });
+
+            var link_obj, k, segment_arr, segments, maxk;
+            for(var i in s)
+            {
+                if(!s.hasOwnProperty(i))
+                    continue;
+                link_obj = s[i];
+                if(link_obj.blocks.length !== 2)
+                    continue;
+
+                segments = [];
+                for(k = 0, maxk = link_obj.segments.length; k<maxk; k++)
+                {
+                    segment_arr = link_obj.segments[k];
+                    segments.push(new Segment(segment_arr[0], segment_arr[1], null,null, this));
+                }
+
+                if(segments.length === 0)
+                    continue;
+                new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
+            }
+        },
+        suspend:function()
         {
-            if(!s.hasOwnProperty(i))
-                continue;
-            link_obj = s[i];
-            if(link_obj.blocks.length !== 2)
-                continue;
-
-            segments = [];
-            for(k = 0, maxk = link_obj.segments.length; k<maxk; k++)
+            this.keyboardHandler.suspend();
+            this.dispatchEvent(new Event(TreeEditor.SUSPENDED));
+        },
+        resume:function()
+        {
+            this.keyboardHandler.resume();
+            this.dispatchEvent(new Event(TreeEditor.RESUMED));
+        },
+        animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
+        {
+            if(!this.useAnimations)
             {
-                segment_arr = link_obj.segments[k];
-                segments.push(new Segment(segment_arr[0], segment_arr[1], null,null, this));
-            }
-
-            if(segments.length === 0)
-                continue;
-            new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
-        }
-    },
-    suspend:function()
-    {
-        //Todo : implémenter la possibilité de mettre en pause les écoutes sur les évènements
-    },
-    resume:function()
-    {
-        //Todo : implémenter la possibiliter de reprendre les écoutes sur les évènements
-    },
-    animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
-    {
-        if(!this.useAnimations)
-        {
-            pOnUpdate({value:pValue}, pDispatcher);
-            return;
-        }
-        var id = pDispatcher.element.getAttribute("id");
-        if(!this.tweens)
-            this.tweens = {};
-        if(!this.tweens[id])
-            this.tweens[id] = {};
-        if(this.tweens[id][pProp])
-            M4Tween.killTweensOf(this.tweens[id][pProp]);
-        this.tweens[id][pProp] = {value:pStartValue};
-        M4Tween.to(this.tweens[id][pProp], pDuration, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
-            pOnUpdate(pDummy, pDispatcher);
-        });
-    },
-    deleteBlocks:function()
-    {
-        var ref = this;
-        this.selector.selectedElements().forEach(function(pElement){
-            ref.dispatchers[pElement.getAttribute("id")].remove();
-        });
-    },
-    getNextBlockIndex:function()
-    {
-        var selector = 'g[data-role="block"]:last-of-type';
-        return (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
-    },
-    fillStash:function()
-    {
-        TreeEditor.stash = [];
-        this.selector.selectedElements().forEach(function(pElement) {
-            TreeEditor.stash.push(pElement);
-        });
-    },
-    cloneStash:function()
-    {
-        var newSelection = [];
-        var ref = this;
-        var block, newGroup, newBlock, newIndex;
-        TreeEditor.stash.forEach(function(pElement)
-        {
-            block = ref.dispatchers[pElement.getAttribute("id")];
-            newIndex = ref.getNextBlockIndex();
-            newGroup = pElement.cloneNode(true);
-            newGroup.setAttribute("id", GROUP_BASE_ID+newIndex);
-            ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
-
-            newBlock = new Block(newGroup, ref);
-
-            if(block)
-                newBlock.setPosition(block.getX()+10, block.getY()+10);
-            ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
-            newSelection.push(newBlock);
-        });
-        this.keyboardHandler.trigger([KeyboardHandler.ESC]);
-        newSelection.forEach(function(pBlock){
-            DragSelector.select(pBlock);
-        });
-    },
-    createLink:function(pFirstBlock, pSecondBlock)
-    {
-        return new Link(pFirstBlock, pSecondBlock, this);
-    },
-    createBlock:function()
-    {
-        var dimensions = {width:200, height:75};
-        var previous = this.dispatchers[this.last_block];
-
-        var index = this.getNextBlockIndex();
-        var g = SVGElement.create("g", {
-            "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
-            "id":GROUP_BASE_ID+index,
-            "data-role":"block",
-            "data-type":"diagnostic"
-        });
-
-        var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-
-        var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
-
-        var cache = Element.create("div", {"class":"cache"}, fo);
-        Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
-
-        this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
-
-        this.dispatchers[g.getAttribute("id")] = new Block(g, this);
-
-        this.createLink(this.last_block, g.getAttribute("id"));
-
-        this.dispatchers[g.getAttribute("id")].select();
-    },
-    toggleHighlightBlock:function(pId, pMethod)
-    {
-        if(!this.svg.querySelector("#"+pId))
-            return;
-        this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
-    },
-    toggleMode:function(e)
-    {
-        e.preventDefault();
-        var t = e.currentTarget;
-        var ref = this;
-        this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
-            if(pButton === t)
+                pOnUpdate({value:pValue}, pDispatcher);
                 return;
-            ref.svg.classList.remove(pButton.getAttribute("data-mode"));
-            pButton.classList.add("inactive");
-        });
-        t.classList.remove("inactive");
-        this.editor_mode = t.getAttribute("data-mode");
-        this.svg.classList.add(this.editor_mode);
-        this.dispatchEvent(new Event(TreeEditor.MODE_CHANGED));
-    },
-    contentMode:function()
-    {
-        return this.editor_mode === TreeEditor.CONTENT_MODE;
-    },
-    deselectAll:function()
-    {
-        this.selector.deselectAll();
-    },
-    getRelativePositionFromSVG:function(pX, pY)
-    {
-        var t = this.svg.getBoundingClientRect();
-        return {x: (pX - t.left), y: (pY - t.top)};
-    }
-});
+            }
+            var id = pDispatcher.element.getAttribute("id");
+            if(!this.tweens)
+                this.tweens = {};
+            if(!this.tweens[id])
+                this.tweens[id] = {};
+            if(this.tweens[id][pProp])
+                M4Tween.killTweensOf(this.tweens[id][pProp]);
+            this.tweens[id][pProp] = {value:pStartValue};
+            M4Tween.to(this.tweens[id][pProp], pDuration, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
+                pOnUpdate(pDummy, pDispatcher);
+            });
+        },
+        deleteBlocks:function()
+        {
+            var ref = this;
+            this.selector.selectedElements().forEach(function(pElement){
+                ref.dispatchers[pElement.getAttribute("id")].remove();
+            });
+        },
+        getNextBlockIndex:function()
+        {
+            var selector = 'g[data-role="block"]:last-of-type';
+            return (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
+        },
+        fillStash:function()
+        {
+            TreeEditor.stash = [];
+            this.selector.selectedElements().forEach(function(pElement) {
+                TreeEditor.stash.push(pElement);
+            });
+        },
+        cloneStash:function()
+        {
+            var newSelection = [];
+            var ref = this;
+            var block, newGroup, newBlock, newIndex;
+            TreeEditor.stash.forEach(function(pElement)
+            {
+                block = ref.dispatchers[pElement.getAttribute("id")];
+                newIndex = ref.getNextBlockIndex();
+                newGroup = pElement.cloneNode(true);
+                newGroup.setAttribute("id", GROUP_BASE_ID+newIndex);
+                ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
+
+                newBlock = new Block(newGroup, ref);
+
+                if(block)
+                    newBlock.setPosition(block.getX()+10, block.getY()+10);
+                ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
+                newSelection.push(newBlock);
+            });
+            this.keyboardHandler.trigger([KeyboardHandler.ESC]);
+            newSelection.forEach(function(pBlock){
+                DragSelector.select(pBlock);
+            });
+        },
+        createLink:function(pFirstBlock, pSecondBlock)
+        {
+            return new Link(pFirstBlock, pSecondBlock, this);
+        },
+        createBlock:function()
+        {
+            var dimensions = {width:200, height:75};
+            var previous = this.dispatchers[this.last_block];
+
+            var index = this.getNextBlockIndex();
+            var g = SVGElement.create("g", {
+                "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
+                "id":GROUP_BASE_ID+index,
+                "data-role":"block",
+                "data-type":"diagnostic"
+            });
+
+            var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
+
+            var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
+
+            var cache = Element.create("div", {"class":"cache"}, fo);
+            Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
+
+            this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
+
+            this.dispatchers[g.getAttribute("id")] = new Block(g, this);
+
+            this.createLink(this.last_block, g.getAttribute("id"));
+
+            this.dispatchers[g.getAttribute("id")].select();
+        },
+        toggleHighlightBlock:function(pId, pMethod)
+        {
+            if(!this.svg.querySelector("#"+pId))
+                return;
+            this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
+        },
+        toggleMode:function(e)
+        {
+            e.preventDefault();
+            var t = e.currentTarget;
+            var ref = this;
+            this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
+                if(pButton === t)
+                    return;
+                ref.svg.classList.remove(pButton.getAttribute("data-mode"));
+                pButton.classList.add("inactive");
+            });
+            t.classList.remove("inactive");
+            this.editor_mode = t.getAttribute("data-mode");
+            this.svg.classList.add(this.editor_mode);
+            this.dispatchEvent(new Event(TreeEditor.MODE_CHANGED));
+        },
+        contentMode:function()
+        {
+            return this.editor_mode === TreeEditor.CONTENT_MODE;
+        },
+        deselectAll:function()
+        {
+            this.selector.deselectAll();
+        },
+        getRelativePositionFromSVG:function(pX, pY)
+        {
+            var t = this.svg.getBoundingClientRect();
+            return {x: (pX - t.left), y: (pY - t.top)};
+        }
+    });
 
 TreeEditor.DESIGN_MODE = "design_mode";
 TreeEditor.CONTENT_MODE = "content_mode";
 TreeEditor.MODE_CHANGED = "evt_mode_changed";
+TreeEditor.SUSPENDED = "evt_suspended";
+TreeEditor.RESUMED = "evt_resumed";
 
 TreeEditor.create = function(pSelector, pDirection)
 {
