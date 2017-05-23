@@ -2237,6 +2237,7 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     toggleMode:function(e)
     {
+        e.preventDefault();
         var t = e.currentTarget;
         var ref = this;
         this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
