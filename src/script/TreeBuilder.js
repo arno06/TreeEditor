@@ -155,8 +155,9 @@ Class.define(Draggable, [EventDispatcher], {
     {
         if(this.treeEditor.contentMode())
             return;
-        this.relativePointer.x = e.clientX - this.getX();
-        this.relativePointer.y = e.clientY - this.getY();
+        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        this.relativePointer.x = p.x - this.getX();
+        this.relativePointer.y = p.y - this.getY();
         document.addEventListener("mouseup", this.__dropHandler, false);
         document.addEventListener("mousemove", this.__dragHandler, false);
     },
@@ -168,8 +169,8 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _dragHandler:function(e)
     {
-        var s = this.treeEditor.getScroll();
-        var p = {x: e.clientX - this.relativePointer.x, y: s.y + e.clientY - this.relativePointer.y};
+        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        p = {x: p.x - this.relativePointer.x, y: p.y - this.relativePointer.y};
         this.setPosition(p.x, p.y);
     },
     _parseOptions:function(pString)
@@ -225,7 +226,6 @@ Class.define(Draggable, [EventDispatcher], {
     setPosition:function(pX, pY)
     {
         var restraint = this.options.restraintTo;
-        var s = this.treeEditor.getScroll();
         pX = Math.max(pX, 0);
         pY = Math.max(pY, 0);
         pX = Math.min(pX, this.treeEditor.svg.getBoundingClientRect().width - this.getWidth());
@@ -255,11 +255,11 @@ Class.define(Draggable, [EventDispatcher], {
             {
                 if(restraint[2]== "top")
                 {
-                    pY = s.y + t.getY();
+                    pY = t.getY();
                 }
                 else
                 {
-                    pY = s.y + t.getY()+t.getHeight();
+                    pY = t.getY()+t.getHeight();
                 }
                 newRestraint.y = restraint[2];
             }
@@ -273,8 +273,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     move:function(pVectorX, pVectorY)
     {
-        var c = this.treeEditor.getScroll();
-        this.setPosition((c.x + this.getX())+pVectorX, (c.y + this.getY())+pVectorY);
+        this.setPosition((this.getX())+pVectorX, (this.getY())+pVectorY);
     },
     getStringPosition:function()
     {
@@ -294,13 +293,11 @@ Class.define(Draggable, [EventDispatcher], {
     },
     getX:function()
     {
-        var t = this.element.getBoundingClientRect();
-        return Number(t.left)||0;
+        return TreeEditor.UTILS.getTranslateXValue(this.element);
     },
     getY:function()
     {
-        var t = this.element.getBoundingClientRect();
-        return Number(t.top)||0;
+        return TreeEditor.UTILS.getTranslateYValue(this.element);
     },
     getWidth:function()
     {
@@ -314,7 +311,6 @@ Class.define(Draggable, [EventDispatcher], {
     },
     getRelativePosition:function(pLeft, pTop)
     {
-        var scroll = this.treeEditor.getScroll();
         var left = 0;
         var top = 0;
 
@@ -343,8 +339,8 @@ Class.define(Draggable, [EventDispatcher], {
         }
 
         return {
-            x: scroll.x + this.getX()+(left * this.getWidth()),
-            y: scroll.y + this.getY()+(top * this.getHeight())
+            x: this.getX()+(left * this.getWidth()),
+            y: this.getY()+(top * this.getHeight())
         };
     },
     checkOverlap:function(pRect)
@@ -352,12 +348,10 @@ Class.define(Draggable, [EventDispatcher], {
         if(!this.isSelectable())
             return;
 
-        var c = this.treeEditor.getScroll();
-
-        var left1 = (c.x + this.getX());
-        var right1 = (c.x + this.getX())+this.getWidth();
-        var top1 = (c.y + this.getY());
-        var bottom1 = (c.y + this.getY())+this.getHeight();
+        var left1 = (this.getX());
+        var right1 = (this.getX())+this.getWidth();
+        var top1 = (this.getY());
+        var bottom1 = (this.getY())+this.getHeight();
 
         var left2 = pRect.x;
         var right2 = pRect.x+pRect.width;
@@ -405,8 +399,9 @@ Class.define(Resizable, [Draggable], {
         {
             e.stopPropagation();
             e.stopImmediatePropagation();
-            this.relativePointer.x = e.clientX - this.getX();
-            this.relativePointer.y = e.clientY - this.getY();
+            var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+            this.relativePointer.x = p.x - this.getX();
+            this.relativePointer.y = p.y - this.getY();
             this.startDimensions = {width:this.getWidth(), height:this.getHeight()};
             document.addEventListener("mouseup", this.__resizedHandler, false);
             document.addEventListener("mousemove", this.__resizeHandler, false);
@@ -414,9 +409,10 @@ Class.define(Resizable, [Draggable], {
     },
     _resizeHandler:function(e)
     {
+        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
         var newPosition = {
-            x: e.clientX - this.getX(),
-            y: e.clientY - this.getY()
+            x: p.x - this.getX(),
+            y: p.y - this.getY()
         };
 
         var diff = {
@@ -821,16 +817,6 @@ Class.define(Anchor, [Draggable],  {
     {
         return this.element.getAttribute("data-shared") && this.element.getAttribute("data-shared") === "true";
     },
-    getX:function()
-    {
-        var t = this.element.getBoundingClientRect();
-        return (Number(t.left)||0)+this.radius;
-    },
-    getY:function()
-    {
-        var t = this.element.getBoundingClientRect();
-        return (Number(t.top)||0)+this.radius;
-    },
     getDimensions:function()
     {
         return {width:this.radius, height:this.radius};
@@ -893,16 +879,16 @@ Class.define(Segment, [EventDispatcher], {
         if(this.treeEditor.contentMode())
             return;
 
-        this.splitInfo = e;
+        this.splitInfo = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        console.log(this.splitInfo, e.clientX, e.clientY);
         this.dispatchEvent(new Event(InteractiveEvent.SPLIT));
     },
     _updatePositionHandler:function(e)
     {
-        var scroll = this.treeEditor.getScroll();
-        this.element.setAttribute("x1", scroll.x + this.anchor1.getX());
-        this.element.setAttribute("y1", scroll.y + this.anchor1.getY());
-        this.element.setAttribute("x2", scroll.x + this.anchor2.getX());
-        this.element.setAttribute("y2", scroll.y + this.anchor2.getY());
+        this.element.setAttribute("x1", this.anchor1.getX());
+        this.element.setAttribute("y1", this.anchor1.getY());
+        this.element.setAttribute("x2", this.anchor2.getX());
+        this.element.setAttribute("y2", this.anchor2.getY());
     },
     remove:function(e)
     {
@@ -1000,8 +986,7 @@ Class.define(Link, [], {
         else
             positionAnchor2 = anchorsPositions[1];
 
-        var scroll = this.treeEditor.getScroll();
-        var splitPosition = (scroll.x+s.splitInfo.clientX)+","+ (scroll.y+s.splitInfo.clientY);
+        var splitPosition = (s.splitInfo.x)+","+ (s.splitInfo.y);
 
         s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
         var segments = [];
@@ -1572,8 +1557,9 @@ Class.define(DragSelector, [EventDispatcher], {
 
         window.getSelection().removeAllRanges();
 
-        var c = this.treeEditor.getScroll();
-        this.startPosition = {x: c.x + e.clientX, y: c.y + e.clientY};
+        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        this.startPosition = {x: p.x, y: p.y};
+        console.log(this.startPosition);
 
         if(parentD&&DragSelector.isSelected(parentD))
         {
@@ -1596,14 +1582,14 @@ Class.define(DragSelector, [EventDispatcher], {
             this.treeEditor.propertiesEditor.deselect();
             document.addEventListener("mouseup", this._selectUpHandler, false);
             document.addEventListener("mousemove", this._selectMoveHandler, false);
-            this.rect = SVGElement.create("rect", {"class":"selector", "x":(c.x+ e.clientX), "y":(c.y+ e.clientY)}, this.svg);
+            this.rect = SVGElement.create("rect", {"class":"selector", "x":(p.x), "y":(p.y)}, this.svg);
         }
     },
     selectMoveHandler:function(e)
     {
-        var c = this.treeEditor.getScroll();
-        var width = (c.x + e.clientX) - this.startPosition.x;
-        var height = (c.y + e.clientY) - this.startPosition.y;
+        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        var width = p.x - this.startPosition.x;
+        var height = p.y - this.startPosition.y;
 
         if(width<0)
         {
@@ -1714,18 +1700,14 @@ Class.define(DragSelector, [EventDispatcher], {
         var getPropComp = horizontal?"width":"height";
         var prop = horizontal?"x":"y";
 
-        var treeEditor = this.treeEditor;
-
         var setX = function(pDummy, pContext)
         {
-            var s = treeEditor.getScroll();
-            pContext.setPosition(s.x + Number(pDummy.value), s.y + pContext.getY());
+            pContext.setPosition(Number(pDummy.value), pContext.getY());
         };
 
         var setY = function(pDummy, pContext)
         {
-            var s = treeEditor.getScroll();
-            pContext.setPosition(s.x + pContext.getX(), s.y + Number(pDummy.value));
+            pContext.setPosition(pContext.getX(), Number(pDummy.value));
         };
 
         var handler = horizontal?setX:setY;
@@ -1825,14 +1807,12 @@ Class.define(DragSelector, [EventDispatcher], {
 
         var setX = function(pDummy, pContext)
         {
-            var s = treeEditor.getScroll();
-            pContext.setPosition(s.x + Number(pDummy.value), s.y + pContext.getY());
+            pContext.setPosition(Number(pDummy.value), pContext.getY());
         };
 
         var setY = function(pDummy, pContext)
         {
-            var s = treeEditor.getScroll();
-            pContext.setPosition(s.x + pContext.getX(), s.y + Number(pDummy.value));
+            pContext.setPosition(pContext.getX(), Number(pDummy.value));
         };
 
         var horizontal = ["left","right","center"].indexOf(alignment)!==-1;
@@ -2197,7 +2177,6 @@ Class.define(TreeEditor, [EventDispatcher],
         var newSelection = [];
         var ref = this;
         var block, newGroup, newBlock, newIndex;
-        var scroll = this.getScroll();
         TreeEditor.stash.forEach(function(pElement)
         {
             block = ref.dispatchers[pElement.getAttribute("id")];
@@ -2209,7 +2188,7 @@ Class.define(TreeEditor, [EventDispatcher],
             newBlock = new Block(newGroup, ref);
 
             if(block)
-                newBlock.setPosition(scroll.x + block.getX()+10, scroll.y + block.getY()+10);
+                newBlock.setPosition(block.getX()+10, block.getY()+10);
             ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
             newSelection.push(newBlock);
         });
@@ -2224,13 +2203,12 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     createBlock:function()
     {
-        var scroll = this.getScroll();
         var dimensions = {width:200, height:75};
         var previous = this.dispatchers[this.last_block];
 
         var index = this.getNextBlockIndex();
         var g = SVGElement.create("g", {
-            "transform":"translate("+(scroll.x + previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+( scroll.y + previous.getY()+previous.getHeight()+30)+")",
+            "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
             "id":GROUP_BASE_ID+index,
             "data-role":"block",
             "data-type":"diagnostic"
@@ -2257,18 +2235,6 @@ Class.define(TreeEditor, [EventDispatcher],
             return;
         this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
     },
-    getScroll:function()
-    {
-        var scroll = {x:0, y:0};
-        var p = this.svg;
-        while(p)
-        {
-            scroll.x += p.scrollLeft||0;
-            scroll.y += p.scrollTop||0;
-            p = p.parentNode;
-        }
-        return scroll;
-    },
     toggleMode:function(e)
     {
         var t = e.currentTarget;
@@ -2291,6 +2257,11 @@ Class.define(TreeEditor, [EventDispatcher],
     deselectAll:function()
     {
         this.selector.deselectAll();
+    },
+    getRelativePositionFromSVG:function(pX, pY)
+    {
+        var t = this.svg.getBoundingClientRect();
+        return {x: (pX - t.left), y: (pY - t.top)};
     }
 });
 
@@ -2311,5 +2282,18 @@ TreeEditor.VERTI = "direction_v";
 TreeEditor.DIRECTIONS = {};
 TreeEditor.DIRECTIONS[TreeEditor.HORIZ] = {"restraints":["right,50%", "left,50%"]};
 TreeEditor.DIRECTIONS[TreeEditor.VERTI] = {"restraints":["50%,bottom", "50%,top"]};
+
+TreeEditor.UTILS = {
+    getTranslateXValue:function(pElement)
+    {
+        var v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
+        return Number(v[v.length-2].replace(" ", "").replace(")", ""))||0;
+    },
+    getTranslateYValue:function(pElement)
+    {
+        var v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
+        return Number(v[v.length-1].replace(" ", "").replace(")", ""))||0;
+    }
+};
 
 NodeList.prototype.forEach = Array.prototype.forEach;
