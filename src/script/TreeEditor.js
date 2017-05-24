@@ -828,10 +828,10 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTr
     this.removeAllEventListener();
     this.treeEditor = pTreeEditor;
     this.svg = pTreeEditor.svg;
-    var index = (document.querySelector("circle.anchor:last-of-type")?Number(document.querySelector("circle.anchor:last-of-type").getAttribute("id").split("-")[1]) + 1:1);
+    var index = pTreeEditor.getNextAnchorIndex();
 
-    this.idAnchor1 = pIdAnchor1||ANCHOR_BASE_ID+index;
-    this.idAnchor2 = pIdAnchor2||ANCHOR_BASE_ID+(index+1);
+    this.idAnchor1 = pIdAnchor1||pTreeEditor.generateId(ANCHOR_BASE_ID+index);
+    this.idAnchor2 = pIdAnchor2||pTreeEditor.generateId(ANCHOR_BASE_ID+(index+1));
 
     if(!pIdAnchor1||!this.treeEditor.dispatchers[this.idAnchor1])
         this.treeEditor.dispatchers[this.idAnchor1] = new Anchor(this.idAnchor1, pPositionAnchor1, this.treeEditor);
@@ -1280,7 +1280,7 @@ Class.define(PropertiesEditor, [], {
                 continue;
 
             inp_ct = Element.create("div", {"class":"inp_container"}, container);
-            id_inp = "input_"+i;
+            id_inp = treeEditor.generateId("input_"+i);
 
             label = Element.create("label", {"for":id_inp, "innerHTML":prop.label+" : "}, inp_ct);
 
@@ -2131,6 +2131,10 @@ Class.define(TreeEditor, [EventDispatcher],
                 new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
             }
         },
+        generateId:function(pComplement)
+        {
+            return this.svg.parentNode.getAttribute("id")+"-"+pComplement;
+        },
         suspend:function()
         {
             this.keyboardHandler.suspend();
@@ -2167,10 +2171,21 @@ Class.define(TreeEditor, [EventDispatcher],
                 ref.dispatchers[pElement.getAttribute("id")].remove();
             });
         },
+        getNextAnchorIndex:function()
+        {
+            var selector = 'circle.anchor:last-of-type';
+            if(!this.svg.querySelector(selector))
+                return 1;
+            var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+            return Number(id[id.length-1]) + 1;
+        },
         getNextBlockIndex:function()
         {
             var selector = 'g[data-role="block"]:last-of-type';
-            return (this.svg.querySelector(selector)?Number(this.svg.querySelector(selector).getAttribute("id").split("-")[1])+ 1:1);
+            if(!this.svg.querySelector(selector))
+                return 1;
+            var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+            return Number(id[id.length-1]) + 1;
         },
         fillStash:function()
         {
@@ -2189,7 +2204,7 @@ Class.define(TreeEditor, [EventDispatcher],
                 block = ref.dispatchers[pElement.getAttribute("id")];
                 newIndex = ref.getNextBlockIndex();
                 newGroup = pElement.cloneNode(true);
-                newGroup.setAttribute("id", GROUP_BASE_ID+newIndex);
+                newGroup.setAttribute("id", ref.generateId(GROUP_BASE_ID+newIndex));
                 ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
 
                 newBlock = new Block(newGroup, ref);
@@ -2216,7 +2231,7 @@ Class.define(TreeEditor, [EventDispatcher],
             var index = this.getNextBlockIndex();
             var g = SVGElement.create("g", {
                 "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
-                "id":GROUP_BASE_ID+index,
+                "id":this.generateId(GROUP_BASE_ID+index),
                 "data-role":"block",
                 "data-type":"diagnostic"
             });
