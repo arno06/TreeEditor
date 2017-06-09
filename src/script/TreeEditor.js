@@ -2298,9 +2298,8 @@ Class.define(TreeEditor, [EventDispatcher],
         var t = this.svg.getBoundingClientRect();
         return {x: (pX - t.left), y: (pY - t.top)};
     },
-    save:function(e){
+    save:function(pHandler){
         var ref = this;
-        var target = e.currentTarget;
         Request.load('css/TreeEditor.css').onComplete(function(pEvent){
             var svg = ref.svg.cloneNode(true);
             svg.classList.remove(TreeEditor.DESIGN_MODE);
@@ -2322,8 +2321,7 @@ Class.define(TreeEditor, [EventDispatcher],
             img.onload = function(){
                 img.onload = null;
                 ctx.drawImage(img, 0, 0);
-                img.src = cv.toDataURL("image/png");
-                target.parentNode.insertBefore(img, target);
+                pHandler(cv.toDataURL("image/png"));
             };
             img.setAttribute("src", "data:image/svg+xml;base64," + btoa(new XMLSerializer().serializeToString(svg)));
         });
