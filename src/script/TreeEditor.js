@@ -464,7 +464,7 @@ function Block(pElement, pTreeEditor)
     this.element.addEventListener("click", this.select.proxy(this), false);
     this.previous = {};
     this.next = {};
-    this.collections = [new ElementCollection("notes", this, "left,bottom"),new ElementCollection("grades", this, "right-18,bottom")];
+    this.collections = [new ElementCollection("notes", this, "left,bottom", pTreeEditor),new ElementCollection("grades", this, "right-18,bottom", pTreeEditor)];
     this.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._sizedUpdatedHandler.proxy(this), false);
 }
 
@@ -1023,8 +1023,9 @@ Class.define(Link, [], {
     }
 });
 
-function ElementCollection(pType, pParentBlock, pParentAlign)
+function ElementCollection(pType, pParentBlock, pParentAlign, pTreeEditor)
 {
+    this.treeEditor = pTreeEditor;
     this.type = pType;
     this.groupElement = pParentBlock.element.querySelector('g[data-role="'+pType+'"]');
     if(!this.groupElement)
@@ -1043,6 +1044,8 @@ function ElementCollection(pType, pParentBlock, pParentAlign)
     this._updatePosition = this.updatePosition.proxy(this);
     this.parentBlock.addEventListener(InteractiveEvent.BOUNDS_CHANGED, this._updatePosition);
     this.parentBlock.addEventListener(InteractiveEvent.REMOVED, this.parentRemovedHandler);
+    this.treeEditor.addEventListener(TreeEditor.MODE_CHANGED, this.modeChangedHandler.proxy(this));
+    this.useMargin = true;
 }
 
 Class.define(ElementCollection, [], {
@@ -1108,6 +1111,11 @@ Class.define(ElementCollection, [], {
         var t = this.groupElement.getBoundingClientRect();
         return Number(t.height)||0;
     },
+    modeChangedHandler:function(e)
+    {
+        this.useMargin = this.treeEditor.editor_mode == TreeEditor.DESIGN_MODE;
+        this.updatePosition();
+    },
     updatePosition:function()
     {
         var currentX = 0;
@@ -1125,6 +1133,10 @@ Class.define(ElementCollection, [], {
             var marginTop = alignments[1].replace("top", "").replace("bottom", "");
             var left = alignments[0].replace(marginLeft, "");
             var top = alignments[1].replace(marginTop, "");
+            if(!this.useMargin){
+                marginLeft = 0;
+                marginTop = 0;
+            }
             var parentDimensions = this.parentBlock.getDimensions();
             switch(left)
             {
@@ -2059,234 +2071,264 @@ function TreeEditor(pContainer, pDirection)
 }
 
 Class.define(TreeEditor, [EventDispatcher],
+{
+    initTree:function()
     {
-        initTree:function()
+        var ref = this;
+        this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
+            ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
+            ref.last_block = pElement.getAttribute("id");
+        });
+
+        var s = {};
+        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
         {
-            var ref = this;
-            this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
-                ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
-                ref.last_block = pElement.getAttribute("id");
-            });
+            var id = pElement.getAttribute("id");
+            var anchors_id = id.split("_");
+            var anchor1 = anchors_id[1];
+            var anchor2 = anchors_id[2];
 
-            var s = {};
-            this.svg.querySelectorAll("line.segment").forEach(function(pElement)
+            var el1 = ref.svg.querySelector("#"+anchor1);
+            var el2 = ref.svg.querySelector("#"+anchor2);
+
+            var seg;
+
+            if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
             {
-                var id = pElement.getAttribute("id");
-                var anchors_id = id.split("_");
-                var anchor1 = anchors_id[1];
-                var anchor2 = anchors_id[2];
-
-                var el1 = ref.svg.querySelector("#"+anchor1);
-                var el2 = ref.svg.querySelector("#"+anchor2);
-
-                var seg;
-
-                if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
-                {
-                    var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                    seg = {
-                        "blocks":[block1],
-                        "segments":[[anchor1, anchor2]]
-                    };
-                }
-                else
-                {
-                    //anchor1 shared
-                    seg = s[anchor1];
-                    seg.segments.push([anchor1, anchor2]);
-                }
-
-                if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
-                {
-                    var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                    seg.blocks.push(block2);
-                    s[anchor1] = seg;
-                }
-                else
-                {
-                    //anchor2 shared
-                    s[anchor2] = seg;
-                    delete s[anchor1];
-                }
-            });
-
-            var link_obj, k, segment_arr, segments, maxk;
-            for(var i in s)
-            {
-                if(!s.hasOwnProperty(i))
-                    continue;
-                link_obj = s[i];
-                if(link_obj.blocks.length !== 2)
-                    continue;
-
-                segments = [];
-                for(k = 0, maxk = link_obj.segments.length; k<maxk; k++)
-                {
-                    segment_arr = link_obj.segments[k];
-                    segments.push(new Segment(segment_arr[0], segment_arr[1], null,null, this));
-                }
-
-                if(segments.length === 0)
-                    continue;
-                new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
+                var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                seg = {
+                    "blocks":[block1],
+                    "segments":[[anchor1, anchor2]]
+                };
             }
-        },
-        generateId:function(pComplement)
-        {
-            return this.svg.parentNode.getAttribute("id")+"-"+pComplement;
-        },
-        suspend:function()
-        {
-            this.keyboardHandler.suspend();
-            this.dispatchEvent(new Event(TreeEditor.SUSPENDED));
-        },
-        resume:function()
-        {
-            this.keyboardHandler.resume();
-            this.dispatchEvent(new Event(TreeEditor.RESUMED));
-        },
-        animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
-        {
-            if(!this.useAnimations)
+            else
             {
-                pOnUpdate({value:pValue}, pDispatcher);
-                return;
+                //anchor1 shared
+                seg = s[anchor1];
+                seg.segments.push([anchor1, anchor2]);
             }
-            var id = pDispatcher.element.getAttribute("id");
-            if(!this.tweens)
-                this.tweens = {};
-            if(!this.tweens[id])
-                this.tweens[id] = {};
-            if(this.tweens[id][pProp])
-                M4Tween.killTweensOf(this.tweens[id][pProp]);
-            this.tweens[id][pProp] = {value:pStartValue};
-            M4Tween.to(this.tweens[id][pProp], pDuration, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
-                pOnUpdate(pDummy, pDispatcher);
-            });
-        },
-        deleteBlocks:function()
-        {
-            var ref = this;
-            this.selector.selectedElements().forEach(function(pElement){
-                ref.dispatchers[pElement.getAttribute("id")].remove();
-            });
-        },
-        getNextAnchorIndex:function()
-        {
-            var selector = 'circle.anchor:last-of-type';
-            if(!this.svg.querySelector(selector))
-                return 1;
-            var id = this.svg.querySelector(selector).getAttribute("id").split("-");
-            return Number(id[id.length-1]) + 1;
-        },
-        getNextBlockIndex:function()
-        {
-            var selector = 'g[data-role="block"]:last-of-type';
-            if(!this.svg.querySelector(selector))
-                return 1;
-            var id = this.svg.querySelector(selector).getAttribute("id").split("-");
-            return Number(id[id.length-1]) + 1;
-        },
-        fillStash:function()
-        {
-            TreeEditor.stash = [];
-            this.selector.selectedElements().forEach(function(pElement) {
-                TreeEditor.stash.push(pElement);
-            });
-        },
-        cloneStash:function()
-        {
-            var newSelection = [];
-            var ref = this;
-            var block, newGroup, newBlock, newIndex;
-            TreeEditor.stash.forEach(function(pElement)
+
+            if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
             {
-                block = ref.dispatchers[pElement.getAttribute("id")];
-                newIndex = ref.getNextBlockIndex();
-                newGroup = pElement.cloneNode(true);
-                newGroup.setAttribute("id", ref.generateId(GROUP_BASE_ID+newIndex));
-                ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
+                var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
+                seg.blocks.push(block2);
+                s[anchor1] = seg;
+            }
+            else
+            {
+                //anchor2 shared
+                s[anchor2] = seg;
+                delete s[anchor1];
+            }
+        });
 
-                newBlock = new Block(newGroup, ref);
-
-                if(block)
-                    newBlock.setPosition(block.getX()+10, block.getY()+10);
-                ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
-                newSelection.push(newBlock);
-            });
-            this.keyboardHandler.trigger([KeyboardHandler.ESC]);
-            newSelection.forEach(function(pBlock){
-                DragSelector.select(pBlock);
-            });
-        },
-        createLink:function(pFirstBlock, pSecondBlock)
+        var link_obj, k, segment_arr, segments, maxk;
+        for(var i in s)
         {
-            return new Link(pFirstBlock, pSecondBlock, this);
-        },
-        createBlock:function()
-        {
-            var dimensions = {width:200, height:75};
-            var previous = this.dispatchers[this.last_block];
+            if(!s.hasOwnProperty(i))
+                continue;
+            link_obj = s[i];
+            if(link_obj.blocks.length !== 2)
+                continue;
 
-            var index = this.getNextBlockIndex();
-            var g = SVGElement.create("g", {
-                "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
-                "id":this.generateId(GROUP_BASE_ID+index),
-                "data-role":"block",
-                "data-type":"diagnostic"
-            });
+            segments = [];
+            for(k = 0, maxk = link_obj.segments.length; k<maxk; k++)
+            {
+                segment_arr = link_obj.segments[k];
+                segments.push(new Segment(segment_arr[0], segment_arr[1], null,null, this));
+            }
 
-            var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
-
-            var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
-
-            var cache = Element.create("div", {"class":"cache"}, fo);
-            Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
-
-            this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
-
-            this.dispatchers[g.getAttribute("id")] = new Block(g, this);
-
-            this.createLink(this.last_block, g.getAttribute("id"));
-
-            this.dispatchers[g.getAttribute("id")].select();
-        },
-        toggleHighlightBlock:function(pId, pMethod)
-        {
-            if(!this.svg.querySelector("#"+pId))
-                return;
-            this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
-        },
-        toggleMode:function(e)
-        {
-            e.preventDefault();
-            var t = e.currentTarget;
-            var ref = this;
-            this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
-                if(pButton === t)
-                    return;
-                ref.svg.classList.remove(pButton.getAttribute("data-mode"));
-                pButton.classList.add("inactive");
-            });
-            t.classList.remove("inactive");
-            this.editor_mode = t.getAttribute("data-mode");
-            this.svg.classList.add(this.editor_mode);
-            this.dispatchEvent(new Event(TreeEditor.MODE_CHANGED));
-        },
-        contentMode:function()
-        {
-            return this.editor_mode === TreeEditor.CONTENT_MODE;
-        },
-        deselectAll:function()
-        {
-            this.selector.deselectAll();
-        },
-        getRelativePositionFromSVG:function(pX, pY)
-        {
-            var t = this.svg.getBoundingClientRect();
-            return {x: (pX - t.left), y: (pY - t.top)};
+            if(segments.length === 0)
+                continue;
+            new Link(link_obj.blocks[0], link_obj.blocks[1], this, segments);
         }
-    });
+    },
+    generateId:function(pComplement)
+    {
+        return this.svg.parentNode.getAttribute("id")+"-"+pComplement;
+    },
+    suspend:function()
+    {
+        this.keyboardHandler.suspend();
+        this.dispatchEvent(new Event(TreeEditor.SUSPENDED));
+    },
+    resume:function()
+    {
+        this.keyboardHandler.resume();
+        this.dispatchEvent(new Event(TreeEditor.RESUMED));
+    },
+    animate:function(pDispatcher, pProp, pStartValue, pValue, pDuration, pOnUpdate)
+    {
+        if(!this.useAnimations)
+        {
+            pOnUpdate({value:pValue}, pDispatcher);
+            return;
+        }
+        var id = pDispatcher.element.getAttribute("id");
+        if(!this.tweens)
+            this.tweens = {};
+        if(!this.tweens[id])
+            this.tweens[id] = {};
+        if(this.tweens[id][pProp])
+            M4Tween.killTweensOf(this.tweens[id][pProp]);
+        this.tweens[id][pProp] = {value:pStartValue};
+        M4Tween.to(this.tweens[id][pProp], pDuration, {"value":pValue, "useStyle":false}).onUpdate(function(pDummy){
+            pOnUpdate(pDummy, pDispatcher);
+        });
+    },
+    deleteBlocks:function()
+    {
+        var ref = this;
+        this.selector.selectedElements().forEach(function(pElement){
+            ref.dispatchers[pElement.getAttribute("id")].remove();
+        });
+    },
+    getNextAnchorIndex:function()
+    {
+        var selector = 'circle.anchor:last-of-type';
+        if(!this.svg.querySelector(selector))
+            return 1;
+        var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+        return Number(id[id.length-1]) + 1;
+    },
+    getNextBlockIndex:function()
+    {
+        var selector = 'g[data-role="block"]:last-of-type';
+        if(!this.svg.querySelector(selector))
+            return 1;
+        var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+        return Number(id[id.length-1]) + 1;
+    },
+    fillStash:function()
+    {
+        TreeEditor.stash = [];
+        this.selector.selectedElements().forEach(function(pElement) {
+            TreeEditor.stash.push(pElement);
+        });
+    },
+    cloneStash:function()
+    {
+        var newSelection = [];
+        var ref = this;
+        var block, newGroup, newBlock, newIndex;
+        TreeEditor.stash.forEach(function(pElement)
+        {
+            block = ref.dispatchers[pElement.getAttribute("id")];
+            newIndex = ref.getNextBlockIndex();
+            newGroup = pElement.cloneNode(true);
+            newGroup.setAttribute("id", ref.generateId(GROUP_BASE_ID+newIndex));
+            ref.svg.insertBefore(newGroup, ref.svg.querySelector("line.segment:first-of-type"));
+
+            newBlock = new Block(newGroup, ref);
+
+            if(block)
+                newBlock.setPosition(block.getX()+10, block.getY()+10);
+            ref.dispatchers[newGroup.getAttribute("id")] = newBlock;
+            newSelection.push(newBlock);
+        });
+        this.keyboardHandler.trigger([KeyboardHandler.ESC]);
+        newSelection.forEach(function(pBlock){
+            DragSelector.select(pBlock);
+        });
+    },
+    createLink:function(pFirstBlock, pSecondBlock)
+    {
+        return new Link(pFirstBlock, pSecondBlock, this);
+    },
+    createBlock:function()
+    {
+        var dimensions = {width:200, height:75};
+        var previous = this.dispatchers[this.last_block];
+
+        var index = this.getNextBlockIndex();
+        var g = SVGElement.create("g", {
+            "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
+            "id":this.generateId(GROUP_BASE_ID+index),
+            "data-role":"block",
+            "data-type":"diagnostic"
+        });
+
+        var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
+
+        var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
+
+        var cache = Element.create("div", {"class":"cache"}, fo);
+        Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
+
+        this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
+
+        this.dispatchers[g.getAttribute("id")] = new Block(g, this);
+
+        this.createLink(this.last_block, g.getAttribute("id"));
+
+        this.dispatchers[g.getAttribute("id")].select();
+    },
+    toggleHighlightBlock:function(pId, pMethod)
+    {
+        if(!this.svg.querySelector("#"+pId))
+            return;
+        this.svg.querySelector("#"+pId).classList[pMethod||"remove"]("highlight");
+    },
+    toggleMode:function(e)
+    {
+        e.preventDefault();
+        var t = e.currentTarget;
+        var ref = this;
+        this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
+            if(pButton === t)
+                return;
+            ref.svg.classList.remove(pButton.getAttribute("data-mode"));
+            pButton.classList.add("inactive");
+        });
+        t.classList.remove("inactive");
+        this.editor_mode = t.getAttribute("data-mode");
+        this.svg.classList.add(this.editor_mode);
+        this.dispatchEvent(new Event(TreeEditor.MODE_CHANGED));
+    },
+    contentMode:function()
+    {
+        return this.editor_mode === TreeEditor.CONTENT_MODE;
+    },
+    deselectAll:function()
+    {
+        this.selector.deselectAll();
+    },
+    getRelativePositionFromSVG:function(pX, pY)
+    {
+        var t = this.svg.getBoundingClientRect();
+        return {x: (pX - t.left), y: (pY - t.top)};
+    },
+    save:function(e){
+        var ref = this;
+        var target = e.currentTarget;
+        Request.load('css/TreeEditor.css').onComplete(function(pEvent){
+            var svg = ref.svg.cloneNode(true);
+            svg.classList.remove(TreeEditor.DESIGN_MODE);
+            svg.classList.add(TreeEditor.CONTENT_MODE);
+            svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){pElement.removeAttribute(DragSelector.ATTRIBUTE);});
+            svg.querySelectorAll('.'+PropertiesEditor.CLASS).forEach(function(pElement){pElement.classList.remove(PropertiesEditor.CLASS);});
+            SVGElement.create("style", {innerHTML:pEvent.responseText}, svg, svg.firstChild);
+            SVGElement.create("style", {innerHTML:"@import url(https://fonts.googleapis.com/css?family=Roboto);"}, svg, svg.firstChild);
+            var cv = document.createElement("canvas");
+            var ctx = cv.getContext("2d");
+
+            var b = ref.svg.getBoundingClientRect();
+
+            cv.setAttribute("width", b.width+"px");
+            cv.setAttribute("height", b.height+"px");
+
+            var img = new Image();
+
+            img.onload = function(){
+                img.onload = null;
+                ctx.drawImage(img, 0, 0);
+                img.src = cv.toDataURL("image/png");
+                target.parentNode.insertBefore(img, target);
+            };
+            img.setAttribute("src", "data:image/svg+xml;base64," + btoa(new XMLSerializer().serializeToString(svg)));
+        });
+    }
+});
 
 TreeEditor.DESIGN_MODE = "design_mode";
 TreeEditor.CONTENT_MODE = "content_mode";
