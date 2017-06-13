@@ -2317,13 +2317,12 @@ Class.define(TreeEditor, [EventDispatcher],
             cv.setAttribute("height", b.height+"px");
 
             var img = new Image();
-
             img.onload = function(){
                 img.onload = null;
                 ctx.drawImage(img, 0, 0);
                 pHandler(cv.toDataURL("image/png"));
             };
-            img.setAttribute("src", "data:image/svg+xml;base64," + btoa(new XMLSerializer().serializeToString(svg)));
+            img.setAttribute("src", "data:image/svg+xml;utf8," + new XMLSerializer().serializeToString(svg));
         });
     }
 });
