@@ -1559,7 +1559,7 @@ Class.define(DragSelector, [EventDispatcher], {
         }
         let parentD = this.treeEditor.dispatchers[id];
 
-        if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize")
+        if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") === "resize")
             || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
             return;
 
@@ -1653,6 +1653,9 @@ Class.define(DragSelector, [EventDispatcher], {
     },
     selectAll:function()
     {
+        if(this.treeEditor.contentMode()){
+            return;
+        }
         let b;
         for(let i in this.treeEditor.dispatchers)
         {
@@ -1687,8 +1690,8 @@ Class.define(DragSelector, [EventDispatcher], {
         let ref_block = this.treeEditor.propertiesEditor.last_block;
         let selectedElements = this.selectedElements();
 
-        let prop = kind=="horiz"?"width":"height";
-        let handler = kind=="horiz"?setW:setH;
+        let prop = kind==="horiz"?"width":"height";
+        let handler = kind==="horiz"?setW:setH;
         let ref_value = ref_block.getDimensions()[prop];
 
         selectedElements.forEach(function(pElement){
@@ -1789,7 +1792,7 @@ Class.define(DragSelector, [EventDispatcher], {
         }
 
         let totalMargin = 0;
-        for(i = 0;i<max;i++) {
+        for(let i = 0;i<max;i++) {
             if(ignore.indexOf(elements[i]) !== -1)
                 continue;
             block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
@@ -1799,7 +1802,7 @@ Class.define(DragSelector, [EventDispatcher], {
         let margin = ((range.max - range.min) - totalMargin) / ((max - ignoreCount)+1);
 
         let currentValue = range.min;
-        for(i = 0;i<max;i++) {
+        for(let i = 0;i<max;i++) {
             if(ignore.indexOf(elements[i]) !== -1)
                 continue;
             block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
@@ -2087,14 +2090,11 @@ Class.define(TreeEditor, [EventDispatcher],
                 return;
             }
             let id = pElement.getAttribute("id");
-            console.log("getting lines of "+id);
             let segments = [];
-            let points = [id];
             done.push(id);
             let anchor2;
             document.querySelectorAll('line.segment[id*="_'+id+'_"]').forEach(function(pLine){
                 anchor2 = pLine.getAttribute("id").split("_")[2];
-                points.push(anchor2);
                 segments.push([id, anchor2]);
                 done.push(anchor2);
                 while(!ref.svg.querySelector("#"+anchor2).getAttribute("data-draggable")){
@@ -2103,46 +2103,15 @@ Class.define(TreeEditor, [EventDispatcher],
                         console.log("no line "+anchor2);
                         break;
                     }
-                    let curid = l.getAttribute("id").split("_")[2];
-                    segments.push([anchor2, curid]);
-                    anchor2 = curid;
+                    let curId = l.getAttribute("id").split("_")[2];
+                    segments.push([anchor2, curId]);
+                    anchor2 = curId;
                     done.push(anchor2);
-                    points.push(anchor2);
                 }
             });
             let blocks = [pElement.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0], ref.svg.querySelector("#"+anchor2).getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0]];
-            s[pElement.getAttribute("id")] = {"blocks":blocks, "segments":segments, "points":points};
+            s[pElement.getAttribute("id")] = {"blocks":blocks, "segments":segments};
         });
-
-        console.log(s);
-
-        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
-        {
-            let id = pElement.getAttribute("id");
-            let anchors_id = id.split("_");
-            let anchor1 = anchors_id[1];
-            let anchor2 = anchors_id[2];
-
-            console.log(anchor1+" "+anchor2);
-
-            let el1 = ref.svg.querySelector("#"+anchor1);
-            let el2 = ref.svg.querySelector("#"+anchor2);
-
-            if(s[anchor1]){
-                s[anchor1].segments.push([anchor1, anchor2]);
-                s[anchor1].points.push(anchor2);
-            }
-            if(s[anchor2]){
-                s[anchor2].segments.push([anchor1, anchor2]);
-                s[anchor2].points.push(anchor1);
-            }
-
-            if(s[anchor1]&&s[anchor2]){
-                s[anchor1].blocks.push(s[anchor2].blocks[0]);
-                delete s[anchor2];
-            }
-        });
-        console.log(s);
 
         let link_obj, k, segment_arr, segments, maxk;
         for(let i in s)
@@ -2200,6 +2169,9 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     deleteBlocks:function()
     {
+        if(this.contentMode()){
+            return;
+        }
         let ref = this;
         this.selector.selectedElements().forEach(function(pElement){
             ref.dispatchers[pElement.getAttribute("id")].remove();
