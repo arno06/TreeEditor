@@ -1,12 +1,12 @@
-var NS_SVG = "http://www.w3.org/2000/svg";
-var GROUP_BASE_ID = "group-";
-var LINK_BASE_ID = "link_";
-var ANCHOR_BASE_ID = "anchor-";
-var SEGMENT_BASE_ID = "segment_";
-var BLOCK_MAX_WIDTH = 88;
-var BLOCK_MAX_HEIGHT = 35;
+const NS_SVG = "http://www.w3.org/2000/svg";
+const GROUP_BASE_ID = "group-";
+const LINK_BASE_ID = "link_";
+const ANCHOR_BASE_ID = "anchor-";
+const SEGMENT_BASE_ID = "segment_";
+const BLOCK_MAX_WIDTH = 88;
+const BLOCK_MAX_HEIGHT = 35;
 
-var wysihtml_functions = [
+let wysihtml_functions = [
     {
         "command":"bold",
         "title":"CTRL+B",
@@ -77,18 +77,18 @@ var wysihtml_functions = [
     }
 ];
 
-var type_list = {
+let type_list = {
     "diagnostic":"D&eacute;marche diagnostique",
     "reflexion": "&Eacute;valuation",
     "treatment": "Traitement"
 };
-var grade_list = {
+let grade_list = {
     "Grade A":"Grade A",
     "Grade B":"Grade B",
     "Grade C":"Grade C",
     "AE":"AE"
 };
-var note_list = {
+let note_list = {
     "1":"1",
     "2":"2",
     "3":"3",
@@ -99,11 +99,11 @@ var note_list = {
     "8":"8"
 };
 
-var wysihtmlParserRules = {"tags":{"br":1}};
+let wysihtmlParserRules = {"tags":{"br":1}};
 
 wysihtml_functions.forEach(function(pRule){
-    var r, k;
-    for(var i in pRule.rules)
+    let r, k;
+    for(let i in pRule.rules)
     {
         if(!pRule.rules.hasOwnProperty(i))
             continue;
@@ -155,7 +155,7 @@ Class.define(Draggable, [EventDispatcher], {
     {
         if(this.treeEditor.contentMode())
             return;
-        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
         this.relativePointer.x = p.x - this.getX();
         this.relativePointer.y = p.y - this.getY();
         document.addEventListener("mouseup", this.__dropHandler, false);
@@ -169,7 +169,7 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _dragHandler:function(e)
     {
-        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
         p = {x: p.x - this.relativePointer.x, y: p.y - this.relativePointer.y};
         this.setPosition(p.x, p.y);
     },
@@ -178,12 +178,12 @@ Class.define(Draggable, [EventDispatcher], {
         if(!pString)
             return {};
 
-        var options = {};
+        let options = {};
 
-        var opts = pString.split(";");
+        let opts = pString.split(";");
 
-        var o, name, params;
-        for(var i = 0, max = opts.length; i<max;i++)
+        let o, name, params;
+        for(let i = 0, max = opts.length; i<max;i++)
         {
             o = opts[i];
             name = o.split(":");
@@ -196,8 +196,8 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _updateOptions:function()
     {
-        var strOpt = [], opt;
-        for(var i in this.options)
+        let strOpt = [], opt;
+        for(let i in this.options)
         {
             if(!this.options.hasOwnProperty(i))
                 continue;
@@ -208,13 +208,13 @@ Class.define(Draggable, [EventDispatcher], {
     },
     _updateConstraint:function()
     {
-        var restraint = this.options.restraintTo;
-        var rPosition = this.treeEditor.dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
+        let restraint = this.options.restraintTo;
+        let rPosition = this.treeEditor.dispatchers[restraint[0]].getRelativePosition(restraint[1]||"50%", restraint[2]||"50%");
         this.setPosition(rPosition.x, rPosition.y);
     },
     remove:function()
     {
-        var id = this.element.getAttribute("id");
+        let id = this.element.getAttribute("id");
         if(!this.element.parentNode)
             return;
         this.element.parentNode.removeChild(this.element);
@@ -225,23 +225,23 @@ Class.define(Draggable, [EventDispatcher], {
     },
     setPosition:function(pX, pY)
     {
-        var restraint = this.options.restraintTo;
+        let restraint = this.options.restraintTo;
         pX = Math.max(pX, 0);
         pY = Math.max(pY, 0);
         pX = Math.min(pX, this.treeEditor.svg.getBoundingClientRect().width - this.getWidth());
         pY = Math.min(pY, this.treeEditor.svg.getBoundingClientRect().height- this.getHeight());
         if(restraint)
         {
-            var t = this.treeEditor.dispatchers[restraint[0]];
+            let t = this.treeEditor.dispatchers[restraint[0]];
 
             pX = Math.max(t.getX(), pX);
             pX = Math.min(t.getX() + t.getWidth(), pX);
             pY = Math.max(t.getY(), pY);
             pY = Math.min(t.getY() + t.getHeight(), pY);
-            var newRestraint = {x:(Math.round(((pX - t.getX()) / t.getWidth())*1000)/10)+"%", y:(Math.round(((pY - t.getY()) / t.getHeight()) * 1000)/10)+"%"};
+            let newRestraint = {x:(Math.round(((pX - t.getX()) / t.getWidth())*1000)/10)+"%", y:(Math.round(((pY - t.getY()) / t.getHeight()) * 1000)/10)+"%"};
             if(["left", "right"].indexOf(restraint[1])>-1)
             {
-                if(restraint[1]== "left")
+                if(restraint[1] === "left")
                 {
                     pX = t.getX();
                 }
@@ -253,7 +253,7 @@ Class.define(Draggable, [EventDispatcher], {
             }
             else if (["top", "bottom"].indexOf(restraint[2])>-1)
             {
-                if(restraint[2]== "top")
+                if(restraint[2] === "top")
                 {
                     pY = t.getY();
                 }
@@ -301,18 +301,18 @@ Class.define(Draggable, [EventDispatcher], {
     },
     getWidth:function()
     {
-        var t = this.element.getBoundingClientRect();
+        let t = this.element.getBoundingClientRect();
         return Number(t.width)||0;
     },
     getHeight:function()
     {
-        var t = this.element.getBoundingClientRect();
+        let t = this.element.getBoundingClientRect();
         return Number(t.height)||0;
     },
     getRelativePosition:function(pLeft, pTop)
     {
-        var left = 0;
-        var top = 0;
+        let left = 0;
+        let top = 0;
 
         switch(pLeft)
         {
@@ -348,15 +348,15 @@ Class.define(Draggable, [EventDispatcher], {
         if(!this.isSelectable())
             return;
 
-        var left1 = (this.getX());
-        var right1 = (this.getX())+this.getWidth();
-        var top1 = (this.getY());
-        var bottom1 = (this.getY())+this.getHeight();
+        let left1 = (this.getX());
+        let right1 = (this.getX())+this.getWidth();
+        let top1 = (this.getY());
+        let bottom1 = (this.getY())+this.getHeight();
 
-        var left2 = pRect.x;
-        var right2 = pRect.x+pRect.width;
-        var top2 = pRect.y;
-        var bottom2 = pRect.y+pRect.height;
+        let left2 = pRect.x;
+        let right2 = pRect.x+pRect.width;
+        let top2 = pRect.y;
+        let bottom2 = pRect.y+pRect.height;
 
         return (left1<right2 && left2<right1 && top1<bottom2 && top2 < bottom1);
     },
@@ -366,7 +366,7 @@ Class.define(Draggable, [EventDispatcher], {
     }
 });
 
-var InteractiveEvent = {
+let InteractiveEvent = {
     BOUNDS_CHANGED: "evt_bounds_changed",
     REMOVED: "evt_removed",
     SPLIT: "evt_split"
@@ -393,13 +393,13 @@ Class.define(Resizable, [Draggable], {
         if(this.treeEditor.contentMode())
             return;
 
-        var t = e.target;
+        let t = e.target;
 
         if(t.getAttribute("data-role") && t.getAttribute("data-role") === "resize")
         {
             e.stopPropagation();
             e.stopImmediatePropagation();
-            var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+            let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
             this.relativePointer.x = p.x - this.getX();
             this.relativePointer.y = p.y - this.getY();
             this.startDimensions = {width:this.getWidth(), height:this.getHeight()};
@@ -409,25 +409,25 @@ Class.define(Resizable, [Draggable], {
     },
     _resizeHandler:function(e)
     {
-        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
-        var newPosition = {
+        let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        let newPosition = {
             x: p.x - this.getX(),
             y: p.y - this.getY()
         };
 
-        var diff = {
+        let diff = {
             x: newPosition.x - this.relativePointer.x,
             y: newPosition.y - this.relativePointer.y
         };
 
         if(e.shiftKey)
         {
-            var max = Math.max(diff.x, diff.y);
+            let max = Math.max(diff.x, diff.y);
             diff.x = max;
             diff.y = max;
         }
 
-        var newDimensions = {
+        let newDimensions = {
             width:this.startDimensions.width + diff.x,
             height:this.startDimensions.height + diff.y
         };
@@ -444,16 +444,16 @@ Class.define(Resizable, [Draggable], {
     {
         pWidth = Math.max(pWidth, BLOCK_MAX_WIDTH);
         pHeight = Math.max(pHeight, BLOCK_MAX_HEIGHT);
-        var rect = this.element.querySelector("rect");
+        let rect = this.element.querySelector("rect");
         rect.setAttribute("width", Math.round(pWidth));
         rect.setAttribute("height", Math.round(pHeight));
-        var resizer = this.element.querySelector('path[data-role="resize"]');
+        let resizer = this.element.querySelector('path[data-role="resize"]');
         resizer.setAttribute("transform", "translate("+(pWidth-15)+", "+(pHeight-15)+")");
         this.dispatchEvent(new Event(InteractiveEvent.BOUNDS_CHANGED));
     },
     getDimensions:function()
     {
-        var rect = this.element.querySelector("rect");
+        let rect = this.element.querySelector("rect");
         return {width:Number(rect.getAttribute("width")), height:Number(rect.getAttribute("height"))};
     }
 });
@@ -475,8 +475,7 @@ Class.define(Block,[Resizable], {
     },
     setProperty:function(pName, pValue)
     {
-        var ref = this;
-        var dim;
+        let dim;
         switch(pName)
         {
             case "description":
@@ -505,7 +504,7 @@ Class.define(Block,[Resizable], {
                 }
                 break;
             case "newLink":
-                if(pValue != "none")
+                if(pValue !== "none")
                 {
                     this.treeEditor.toggleHighlightBlock(pValue, "remove");
                     this.treeEditor.createLink(this.element.getAttribute("id"), pValue);
@@ -537,7 +536,7 @@ Class.define(Block,[Resizable], {
     },
     getEditableProperties:function()
     {
-        var properties = {
+        let properties = {
             "type": {
                 "label":"Type de block",
                 "mode":[TreeEditor.DESIGN_MODE,TreeEditor.CONTENT_MODE],
@@ -565,10 +564,10 @@ Class.define(Block,[Resizable], {
             }
         };
 
-        var collections = [{"labelList":"Note", "name":"notes", "method":"removeNote", "availableList":note_list, "labelDefaultAdd":"Sélectionner une note", "labelAdd":"Ajouter une note"},
+        let collections = [{"labelList":"Note", "name":"notes", "method":"removeNote", "availableList":note_list, "labelDefaultAdd":"Sélectionner une note", "labelAdd":"Ajouter une note"},
             {"labelList":"Grade", "name":"grades", "method":"removeGrade", "availableList":grade_list, "labelDefaultAdd":"Sélectionner un grade", "labelAdd":"Ajouter un grade"}];
-        var coll, dList, selectedData, value, i, max, ignore, addList, j, has_options;
-        for(var k = 0, maxk = collections.length; k<maxk; k++)
+        let coll, dList, selectedData, value, i, max, ignore, addList, j, has_options;
+        for(let k = 0, maxk = collections.length; k<maxk; k++)
         {
             coll = collections[k];
             dList = {};
@@ -617,9 +616,9 @@ Class.define(Block,[Resizable], {
 
         }
 
-        var hasNext = false;
-        var next = {};
-        var bl, label, title;
+        let hasNext = false;
+        let next = {};
+        let bl, label, title;
         for(i in this.next)
         {
             if(!this.next.hasOwnProperty(i))
@@ -644,7 +643,7 @@ Class.define(Block,[Resizable], {
 
         ignore = [this.element.getAttribute("id")].concat(this.getLinkedBlocks());
         has_options = false;
-        var further_blocks = {"none":{"label":"Sélectionner un block"}};
+        let further_blocks = {"none":{"label":"Sélectionner un block"}};
         for(i in this.treeEditor.dispatchers)
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i)||ignore.indexOf(i)>-1)
@@ -673,22 +672,22 @@ Class.define(Block,[Resizable], {
     },
     toggleHighlightBlock:function(e)
     {
-        var current_link_id = e.currentTarget.getAttribute("data-combobox-value");
-        var method = e.type === "mouseover"?"add":"remove";
+        let current_link_id = e.currentTarget.getAttribute("data-combobox-value");
+        let method = e.type === "mouseover"?"add":"remove";
         this.treeEditor.toggleHighlightBlock(current_link_id, method);
     },
     toggleHighlightBlockFromLink:function(e)
     {
-        var current_link_id = e.currentTarget.querySelector("span.remove").getAttribute("data-remove");
-        var method = e.type === "mouseover"?"add":"remove";
-        var link_id;
-        for(var i in this.next)
+        let current_link_id = e.currentTarget.querySelector("span.remove").getAttribute("data-remove");
+        let method = e.type === "mouseover"?"add":"remove";
+        let link_id;
+        for(let i in this.next)
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
             link_id = this.next[i];
 
-            if(link_id == current_link_id)
+            if(link_id === current_link_id)
             {
                 this.treeEditor.toggleHighlightBlock(i, method);
                 return;
@@ -696,12 +695,12 @@ Class.define(Block,[Resizable], {
         }
     },
     nextBlockRemovedHandler:function(e){
-        var id = e.currentTarget.element.getAttribute("id");
+        let id = e.currentTarget.element.getAttribute("id");
         this.next[id] = null;
         delete this.next[id];
     },
     previousBlockRemovedHandler:function(e){
-        var id = e.currentTarget.element.getAttribute("id");
+        let id = e.currentTarget.element.getAttribute("id");
         this.previous[id] = null;
         delete this.previous[id];
     },
@@ -715,7 +714,7 @@ Class.define(Block,[Resizable], {
     },
     removeLink:function(pLink)
     {
-        for(var i in this.next)
+        for(let i in this.next)
         {
             if(!this.next.hasOwnProperty(i))
                 continue;
@@ -730,7 +729,7 @@ Class.define(Block,[Resizable], {
     },
     addPreviousBlock:function(pId, pLine)
     {
-        for(var i in this.previous)
+        for(let i in this.previous)
         {
             if(i === pId)
                 return;
@@ -740,7 +739,7 @@ Class.define(Block,[Resizable], {
     },
     addNextBlock:function(pId, pLine)
     {
-        for(var i in this.next)
+        for(let i in this.next)
         {
             if(i === pId)
                 return;
@@ -750,14 +749,14 @@ Class.define(Block,[Resizable], {
     },
     getLinkedBlocks:function()
     {
-        var linked = [];
-        for(var k in this.next)
+        let linked = [];
+        for(let k in this.next)
         {
             if(!this.next.hasOwnProperty(k))
                 continue;
             linked.push(k);
         }
-        for(k in this.previous)
+        for(let k in this.previous)
         {
             if(!this.previous.hasOwnProperty(k))
                 continue;
@@ -767,11 +766,11 @@ Class.define(Block,[Resizable], {
     },
     _sizedUpdatedHandler:function()
     {
-        var fo = this.element.querySelector("foreignObject");
+        let fo = this.element.querySelector("foreignObject");
         if(!fo)
             return;
 
-        var rectDimensions = this.getDimensions();
+        let rectDimensions = this.getDimensions();
 
         fo.setAttribute("width", Math.max(rectDimensions.width - 20, 0));
         fo.setAttribute("height", Math.max(rectDimensions.height - 20, 0));
@@ -781,7 +780,7 @@ Class.define(Block,[Resizable], {
 function Anchor(pId, pPosition, pTreeEditor)
 {
     this.radius = 10;
-    var opt = {
+    let opt = {
         "r":this.radius,
         "id":pId,
         "data-role":"block",
@@ -799,7 +798,7 @@ function Anchor(pId, pPosition, pTreeEditor)
     this._setupDraggable(this.element, pTreeEditor);
     if(pPosition && pPosition.indexOf("restraintTo:")!==0)
     {
-        var pos = pPosition.split(",");
+        let pos = pPosition.split(",");
         this.setPosition(pos[0], pos[1]);
     }
 }
@@ -828,7 +827,7 @@ function Segment(pIdAnchor1, pIdAnchor2, pPositionAnchor1, pPositionAnchor2, pTr
     this.removeAllEventListener();
     this.treeEditor = pTreeEditor;
     this.svg = pTreeEditor.svg;
-    var index = pTreeEditor.getNextAnchorIndex();
+    let index = pTreeEditor.getNextAnchorIndex();
 
     this.idAnchor1 = pIdAnchor1||pTreeEditor.generateId(ANCHOR_BASE_ID+index);
     this.idAnchor2 = pIdAnchor2||pTreeEditor.generateId(ANCHOR_BASE_ID+(index+1));
@@ -891,7 +890,7 @@ Class.define(Segment, [EventDispatcher], {
     },
     remove:function(e)
     {
-        var id = this.element.getAttribute("id");
+        let id = this.element.getAttribute("id");
         if(!this.element.parentNode)
             return;
         this.element.parentNode.removeChild(this.element);
@@ -928,8 +927,8 @@ Class.define(Segment, [EventDispatcher], {
     },
     getAnchorsPositions:function()
     {
-        var anchor1 = this.anchor1.getStringPosition();
-        var anchor2 = this.anchor2.getStringPosition();
+        let anchor1 = this.anchor1.getStringPosition();
+        let anchor2 = this.anchor2.getStringPosition();
         return [anchor1, anchor2];
     }
 });
@@ -954,7 +953,7 @@ function Link(pFirstBlock ,pSecondBlock, pTreeEditor, pSegments)
 Class.define(Link, [], {
     remove:function(e)
     {
-        var s;
+        let s;
         while(this.segments.length)
         {
             s = this.segments.shift();
@@ -966,14 +965,14 @@ Class.define(Link, [], {
     },
     splitSegment:function(e)
     {
-        var s = e.currentTarget;
+        let s = e.currentTarget;
 
-        var idAnchor1 = null;
-        var idAnchor2 = null;
-        var positionAnchor1 = null;
-        var positionAnchor2 = null;
+        let idAnchor1 = null;
+        let idAnchor2 = null;
+        let positionAnchor1 = null;
+        let positionAnchor2 = null;
 
-        var anchorsPositions = s.getAnchorsPositions();
+        let anchorsPositions = s.getAnchorsPositions();
 
         if(s.anchor1.isShared())
             idAnchor1 = s.anchor1.id;
@@ -985,11 +984,11 @@ Class.define(Link, [], {
         else
             positionAnchor2 = anchorsPositions[1];
 
-        var splitPosition = (s.splitInfo.x)+","+ (s.splitInfo.y);
+        let splitPosition = (s.splitInfo.x)+","+ (s.splitInfo.y);
 
         s.removeEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
-        var segments = [];
-        for(var i = 0, max = this.segments.length; i<max;i++)
+        let segments = [];
+        for(let i = 0, max = this.segments.length; i<max;i++)
         {
             if(this.segments[i].id !== s.id)
             {
@@ -999,12 +998,12 @@ Class.define(Link, [], {
         this.segments = segments;
         s.remove();
 
-        var newSegment = this.addSegment(idAnchor1, null, positionAnchor1, splitPosition);
+        let newSegment = this.addSegment(idAnchor1, null, positionAnchor1, splitPosition);
         this.addSegment(newSegment.idAnchor2, idAnchor2, null, positionAnchor2);
     },
     addSegment:function(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2)
     {
-        var s = new Segment(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2, this.treeEditor);
+        let s = new Segment(pAnchor1, pAnchor2, pPositionAnchor1, pPositionAnchor2, this.treeEditor);
         s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
         s.addEventListener(InteractiveEvent.SPLIT, this.splitSegment.proxy(this), false);
         this.segments.push(s);
@@ -1012,8 +1011,8 @@ Class.define(Link, [], {
     },
     setSegments:function(pSegments)
     {
-        var s;
-        for(var i = 0, max = pSegments.length; i<max; i++)
+        let s;
+        for(let i = 0, max = pSegments.length; i<max; i++)
         {
             s = pSegments[i];
             s.addEventListener(InteractiveEvent.REMOVED, this._removeHandler, false);
@@ -1034,7 +1033,7 @@ function ElementCollection(pType, pParentBlock, pParentAlign, pTreeEditor)
     this.parentAlign = pParentAlign;
     this.elements = [];
     this.elementsValues = [];
-    var ref = this;
+    let ref = this;
     this.groupElement.querySelectorAll("g").forEach(function(pElement)
     {
         ref.elements.push(pElement);
@@ -1057,15 +1056,15 @@ Class.define(ElementCollection, [], {
         this.elements.push(ElementCollection[this.type](pLabel, this.groupElement));
         this.elements.sort(function(pA, pB)
         {
-            var t1 = pA.querySelector("text").textContent;
-            var t2 = pB.querySelector("text").textContent;
+            let t1 = pA.querySelector("text").textContent;
+            let t2 = pB.querySelector("text").textContent;
             if(t1<t2)
                 return -1;
             else if (t1>t2)
                 return 1;
             return 0;
         });
-        var p = this.groupElement;
+        let p = this.groupElement;
         this.elements.forEach(function(pElement){
             p.removeChild(pElement);
             p.appendChild(pElement);
@@ -1074,9 +1073,9 @@ Class.define(ElementCollection, [], {
     },
     removeElement:function(pLabel)
     {
-        var filtered = [];
-        var v;
-        for(var i = 0, max = this.elementsValues.length; i<max;i++)
+        let filtered = [];
+        let v;
+        for(let i = 0, max = this.elementsValues.length; i<max;i++)
         {
             v = this.elementsValues[i];
             if(v === pLabel)
@@ -1103,41 +1102,41 @@ Class.define(ElementCollection, [], {
     },
     getWidth:function()
     {
-        var t = this.groupElement.getBoundingClientRect();
+        let t = this.groupElement.getBoundingClientRect();
         return Number(t.width)||0;
     },
     getHeight:function()
     {
-        var t = this.groupElement.getBoundingClientRect();
+        let t = this.groupElement.getBoundingClientRect();
         return Number(t.height)||0;
     },
-    modeChangedHandler:function(e)
+    modeChangedHandler:function()
     {
-        this.useMargin = this.treeEditor.editor_mode == TreeEditor.DESIGN_MODE;
+        this.useMargin = this.treeEditor.editor_mode === TreeEditor.DESIGN_MODE;
         this.updatePosition();
     },
     updatePosition:function()
     {
-        var currentX = 0;
-        for(var i = 0, max = this.elements.length; i<max; i++)
+        let currentX = 0;
+        for(let i = 0, max = this.elements.length; i<max; i++)
         {
             this.elements[i].setAttribute("transform", "translate("+currentX+",0)");
             currentX += this.elements[i].getBoundingClientRect().width + 3;
         }
-        var alignments = this.parentAlign.split(",");
-        var x = 0;
-        var y = 0;
-        if(alignments.length==2)
+        let alignments = this.parentAlign.split(",");
+        let x = 0;
+        let y = 0;
+        if(alignments.length === 2)
         {
-            var marginLeft = alignments[0].replace("right", "").replace("left", "");
-            var marginTop = alignments[1].replace("top", "").replace("bottom", "");
-            var left = alignments[0].replace(marginLeft, "");
-            var top = alignments[1].replace(marginTop, "");
+            let marginLeft = alignments[0].replace("right", "").replace("left", "");
+            let marginTop = alignments[1].replace("top", "").replace("bottom", "");
+            let left = alignments[0].replace(marginLeft, "");
+            let top = alignments[1].replace(marginTop, "");
             if(!this.useMargin){
                 marginLeft = 0;
                 marginTop = 0;
             }
-            var parentDimensions = this.parentBlock.getDimensions();
+            let parentDimensions = this.parentBlock.getDimensions();
             switch(left)
             {
                 case "right":
@@ -1162,9 +1161,9 @@ Class.define(ElementCollection, [], {
 
 ElementCollection.grades = function(pLabel, pParent)
 {
-    var g = SVGElement.create("g", {"data-role":"grade"}, pParent);
-    var rect = SVGElement.create("rect", {}, g);
-    var label = SVGElement.create("text", {"innerHTML": pLabel, "y":12, "x":2}, g);
+    let g = SVGElement.create("g", {"data-role":"grade"}, pParent);
+    let rect = SVGElement.create("rect", {}, g);
+    let label = SVGElement.create("text", {"innerHTML": pLabel, "y":12, "x":2}, g);
     rect.setAttribute("width", label.getBoundingClientRect().width+4);
     rect.setAttribute("height", label.getBoundingClientRect().height);
     return g;
@@ -1172,10 +1171,10 @@ ElementCollection.grades = function(pLabel, pParent)
 
 ElementCollection.notes = function(pLabel, pParent)
 {
-    var g = SVGElement.create("g", {"data-role":"note"}, pParent);
-    var circle = SVGElement.create("circle", {}, g);
-    var label = SVGElement.create("text", {"innerHTML": pLabel}, g);
-    var r = Math.max(label.getBBox().width, label.getBBox().height)>>1;
+    let g = SVGElement.create("g", {"data-role":"note"}, pParent);
+    let circle = SVGElement.create("circle", {}, g);
+    let label = SVGElement.create("text", {"innerHTML": pLabel}, g);
+    let r = Math.max(label.getBBox().width, label.getBBox().height)>>1;
     circle.setAttribute("cx", r);
     circle.setAttribute("cy", r);
     circle.setAttribute("r", r);
@@ -1184,19 +1183,19 @@ ElementCollection.notes = function(pLabel, pParent)
     return g;
 };
 
-var SVGElement = {
+let SVGElement = {
     create:function(pName, pAttributes, pParentNode, pInsertBefore)
     {
         return Element.create(pName, pAttributes, pParentNode, pInsertBefore, NS_SVG);
     }
 };
 
-var Element = {
+let Element = {
     create:function(pName, pAttributes, pParentNode, pInsertBefore, pNs)
     {
-        var element = pNs?document.createElementNS(pNs, pName):document.createElement(pName);
+        let element = pNs?document.createElementNS(pNs, pName):document.createElement(pName);
 
-        for(var i in pAttributes)
+        for(let i in pAttributes)
         {
             if(!pAttributes.hasOwnProperty(i))
                 continue;
@@ -1231,8 +1230,8 @@ function PropertiesEditor(pElement, pTreeEditor)
 {
     this.treeEditor = pTreeEditor;
     this.element = pElement;
-    var normalMove = 1;
-    var tiledMove = 15;
+    let normalMove = 1;
+    let tiledMove = 15;
     this.rte = [];
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.ESC], this.deselect.proxy(this));
     this.treeEditor.keyboardHandler.addShortcut([KeyboardHandler.LEFT], this.move.proxy(this), [-normalMove, 0]);
@@ -1252,26 +1251,26 @@ Class.define(PropertiesEditor, [], {
     edit:function(pElement)
     {
         this.deselect();
-        var treeEditor = this.treeEditor;
-        var ref = this;
+        let treeEditor = this.treeEditor;
+        let ref = this;
         this.last_block = pElement;
         treeEditor.last_block = pElement.element.getAttribute("id");
         pElement.element.classList.add(PropertiesEditor.CLASS);
 
-        var editable_props = pElement.getEditableProperties();
+        let editable_props = pElement.getEditableProperties();
 
-        var container = this.element.querySelector(".properties");
+        let container = this.element.querySelector(".properties");
 
         this.resetProperties();
 
         this.handleSelectionProperties();
 
-        var changed_cb = function(e)
+        let changed_cb = function(e)
         {
             pElement.setProperty(e.currentTarget.getAttribute("data-prop"), e.currentTarget.value);
         };
 
-        var handleInput = function(pInput)
+        let handleInput = function(pInput)
         {
             pInput.addEventListener("keydown", changed_cb, false);
             pInput.addEventListener("keyup", changed_cb, false);
@@ -1280,8 +1279,8 @@ Class.define(PropertiesEditor, [], {
             pInput.addEventListener("blur", treeEditor.keyboardHandler.resume.proxy(treeEditor.keyboardHandler), false);
         };
 
-        var prop, label, inp_ct, input, id_inp, o, k;
-        for(var i in editable_props)
+        let prop, label, inp_ct, input, id_inp, o, k, none, ul, li, action;
+        for(let i in editable_props)
         {
             if(!editable_props.hasOwnProperty(i))
                 continue;
@@ -1305,9 +1304,9 @@ Class.define(PropertiesEditor, [], {
                     handleInput(input);
                     break;
                 case "html":
-                    var toolbar = Element.create("div", {"id":"toolbar_"+id_inp, "style":"display: none", "class":"toolbar"}, inp_ct);
+                    let toolbar = Element.create("div", {"id":"toolbar_"+id_inp, "style":"display: none", "class":"toolbar"}, inp_ct);
 
-                    var f;
+                    let f;
                     for(k in wysihtml_functions)
                     {
                         if(!wysihtml_functions.hasOwnProperty(k))
@@ -1321,7 +1320,7 @@ Class.define(PropertiesEditor, [], {
                         Element.create("a", {"data-wysihtml-command": f.command, "title": f.title, "class":"material-icons", "innerHTML": f.icon}, toolbar);
                     }
                     input = Element.create("div", {"id":id_inp, "name":id_inp, "innerHTML":prop.value, "data-prop":i}, inp_ct);
-                    var editor = new wysihtml.Editor(id_inp, {
+                    let editor = new wysihtml.Editor(id_inp, {
                         toolbar: "toolbar_"+id_inp,
                         stylesheets:["css/TreeEditor.css"],
                         parserRules: wysihtmlParserRules
@@ -1332,7 +1331,7 @@ Class.define(PropertiesEditor, [], {
                     this.rte.push(editor);
                     break;
                 case "combobox":
-                    var combobox = Element.create("div", {"class":"combobox"}, inp_ct);
+                    let combobox = Element.create("div", {"class":"combobox"}, inp_ct);
 
                     none = prop.data.none;
 
@@ -1341,13 +1340,13 @@ Class.define(PropertiesEditor, [], {
                         prop.data.none = {"label":"Sélectionner une valeur"};
                     }
 
-                    var s = Element.create("span", {"innerHTML":prop.data.none.label}, combobox);
+                    let s = Element.create("span", {"innerHTML":prop.data.none.label}, combobox);
                     Element.create("i", {"class":"material-icons", "innerHTML":"arrow_drop_down"}, s);
 
-                    var hideUl = function(e){
-                        if(e.target.nodeName.toLowerCase() == "li" && e.target.getAttribute("data-combobox-value"))
+                    let hideUl = function(e){
+                        if(e.target.nodeName.toLowerCase() === "li" && e.target.getAttribute("data-combobox-value"))
                             return;
-                        var ul = document.querySelector(".combobox ul.displayed");
+                        let ul = document.querySelector(".combobox ul.displayed");
                         if(ul)
                         {
                             ul.style.display = "none";
@@ -1391,12 +1390,12 @@ Class.define(PropertiesEditor, [], {
                         if(!prop.data.hasOwnProperty(k))
                             continue;
                         o = {"value":k, "innerHTML":prop.data[k], "class":k};
-                        if(k == prop.value)
+                        if(k === prop.value)
                             o.selected = "selected";
                         Element.create("option", o, input);
                     }
 
-                    var none = input.querySelector('option[value="none"]');
+                    none = input.querySelector('option[value="none"]');
                     if(none)
                     {
                         none.parentNode.removeChild(none);
@@ -1405,8 +1404,8 @@ Class.define(PropertiesEditor, [], {
                     }
                     break;
                 case "list":
-                    var ul = Element.create("ul", {"class":"list "+i}, inp_ct);
-                    var li, action, opt;
+                    ul = Element.create("ul", {"class":"list "+i}, inp_ct);
+                    let opt;
                     for(k in prop.data)
                     {
                         if(!prop.data.hasOwnProperty(k))
@@ -1424,9 +1423,9 @@ Class.define(PropertiesEditor, [], {
                         Element.create("span", {"innerHTML":opt.label}, li);
                         action = Element.create("span", {"innerHTML":"&times;", "data-target":pElement.element.getAttribute("id"), "data-remove":opt.extra, "class":"remove", "data-method":opt.method}, li);
                         action.addEventListener("click", function(e){
-                            var t = e.currentTarget;
-                            var remove = t.getAttribute("data-remove");
-                            var method = t.getAttribute("data-method");
+                            let t = e.currentTarget;
+                            let remove = t.getAttribute("data-remove");
+                            let method = t.getAttribute("data-method");
                             if(pElement[method])
                                 pElement[method](remove);
                             ref.edit(pElement);
@@ -1454,14 +1453,14 @@ Class.define(PropertiesEditor, [], {
     },
     handleSelectionProperties:function()
     {
-        var selectedElements = this.treeEditor.selector.selectedElements();
+        let selectedElements = this.treeEditor.selector.selectedElements();
         if(selectedElements.length < 2 || this.treeEditor.contentMode())
             return;
 
-        var buttonsRow = this.treeEditor.selector.getSelectionProperties();
+        let buttonsRow = this.treeEditor.selector.getSelectionProperties();
 
-        var inpContainer, label, buttonContainer, button, row, j, maxj, icon, b;
-        for(var i = 0, max = buttonsRow.length; i<max; i++)
+        let inpContainer, label, buttonContainer, button, row, j, maxj, icon, b;
+        for(let i = 0, max = buttonsRow.length; i<max; i++)
         {
             row = buttonsRow[i];
             inpContainer = Element.create("div", {"class":"inp_container"}, this.element.querySelector(".properties"));
@@ -1483,10 +1482,10 @@ Class.define(PropertiesEditor, [], {
     },
     resetProperties:function()
     {
-        var container = this.element.querySelector(".properties");
+        let container = this.element.querySelector(".properties");
         if(this.rte.length)
         {
-            var b = this.last_block;
+            let b = this.last_block;
             this.rte.forEach(function(pRte){
                 if(b)
                 {
@@ -1500,7 +1499,7 @@ Class.define(PropertiesEditor, [], {
     },
     reselectBlock:function()
     {
-        var b = this.treeEditor.svg.querySelector(".draggable."+PropertiesEditor.CLASS);
+        let b = this.treeEditor.svg.querySelector(".draggable."+PropertiesEditor.CLASS);
         if(!b)
         {
             this.resetProperties();
@@ -1517,10 +1516,10 @@ Class.define(PropertiesEditor, [], {
     },
     move:function(pVector)
     {
-        if(this.treeEditor.contentMode()||!pVector||pVector.length!=2)
+        if(this.treeEditor.contentMode()||!pVector||pVector.length !== 2)
             return;
 
-        for(var i in this.treeEditor.dispatchers)
+        for(let i in this.treeEditor.dispatchers)
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                 continue;
@@ -1550,15 +1549,15 @@ function DragSelector(pTreeEditor)
 Class.define(DragSelector, [EventDispatcher], {
     mousedownHandler:function(e)
     {
-        var t = e.target;
-        var id = t.getAttribute("id");
+        let t = e.target;
+        let id = t.getAttribute("id");
         while(!id&& t.parentNode)
         {
             if(t.nodeName.toLowerCase() === "g" && this.treeEditor.dispatchers[t.getAttribute("id")])
                 id = t.getAttribute("id");
             t = t.parentNode;
         }
-        var parentD = this.treeEditor.dispatchers[id];
+        let parentD = this.treeEditor.dispatchers[id];
 
         if((e.target.getAttribute("data-role")&&e.target.getAttribute("data-role") == "resize")
             || (e.target !== e.currentTarget && (!parentD||(parentD&&!DragSelector.isSelected(parentD)))))
@@ -1570,13 +1569,13 @@ Class.define(DragSelector, [EventDispatcher], {
 
         window.getSelection().removeAllRanges();
 
-        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
         this.startPosition = {x: p.x, y: p.y};
 
         if(parentD&&DragSelector.isSelected(parentD))
         {
-            var b;
-            for(var i in this.treeEditor.dispatchers)
+            let b;
+            for(let i in this.treeEditor.dispatchers)
             {
                 if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                     continue;
@@ -1599,9 +1598,9 @@ Class.define(DragSelector, [EventDispatcher], {
     },
     selectMoveHandler:function(e)
     {
-        var p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
-        var width = p.x - this.startPosition.x;
-        var height = p.y - this.startPosition.y;
+        let p = this.treeEditor.getRelativePositionFromSVG(e.clientX, e.clientY);
+        let width = p.x - this.startPosition.x;
+        let height = p.y - this.startPosition.y;
 
         if(width<0)
         {
@@ -1615,15 +1614,15 @@ Class.define(DragSelector, [EventDispatcher], {
         this.rect.setAttribute("width", Math.abs(width));
         this.rect.setAttribute("height", Math.abs(height));
 
-        var rectangle = {};
+        let rectangle = {};
 
-        var ref = this;
+        let ref = this;
         ["x","y","width","height"].forEach(function(pProp){
             rectangle[pProp] = Number(ref.rect.getAttribute(pProp));
         });
 
-        var b;
-        for(var i in this.treeEditor.dispatchers)
+        let b;
+        for(let i in this.treeEditor.dispatchers)
         {
             if(!this.treeEditor.dispatchers.hasOwnProperty(i))
                 continue;
@@ -1654,8 +1653,8 @@ Class.define(DragSelector, [EventDispatcher], {
     },
     selectAll:function()
     {
-        var b;
-        for(var i in this.treeEditor.dispatchers)
+        let b;
+        for(let i in this.treeEditor.dispatchers)
         {
             if (!this.treeEditor.dispatchers.hasOwnProperty(i))
                 continue;
@@ -1671,29 +1670,29 @@ Class.define(DragSelector, [EventDispatcher], {
 
         e.preventDefault();
 
-        var kind = e.currentTarget.getAttribute("data-param");
+        let kind = e.currentTarget.getAttribute("data-param");
         if(!kind)
             return;
 
-        var setW = function(pDummy, pContext)
+        let setW = function(pDummy, pContext)
         {
             pContext.setDimensions(pDummy.value, pContext.getDimensions().height);
         };
-        var setH = function(pDummy, pContext)
+        let setH = function(pDummy, pContext)
         {
             pContext.setDimensions(pContext.getDimensions().width, pDummy.value);
         };
 
-        var ref = this;
-        var ref_block = this.treeEditor.propertiesEditor.last_block;
-        var selectedElements = this.selectedElements();
+        let ref = this;
+        let ref_block = this.treeEditor.propertiesEditor.last_block;
+        let selectedElements = this.selectedElements();
 
-        var prop = kind=="horiz"?"width":"height";
-        var handler = kind=="horiz"?setW:setH;
-        var ref_value = ref_block.getDimensions()[prop];
+        let prop = kind=="horiz"?"width":"height";
+        let handler = kind=="horiz"?setW:setH;
+        let ref_value = ref_block.getDimensions()[prop];
 
         selectedElements.forEach(function(pElement){
-            var b = ref.treeEditor.dispatchers[pElement.getAttribute("id")];
+            let b = ref.treeEditor.dispatchers[pElement.getAttribute("id")];
             if(!(b instanceof Block))
                 return;
             ref.treeEditor.animate(b, prop, b.getDimensions()[prop], ref_value, 1, handler);
@@ -1706,41 +1705,41 @@ Class.define(DragSelector, [EventDispatcher], {
 
         e.preventDefault();
 
-        var kind = e.currentTarget.getAttribute("data-param");
+        let kind = e.currentTarget.getAttribute("data-param");
         if(!kind)
             return;
 
-        var horizontal = kind === "horiz";
+        let horizontal = kind === "horiz";
 
-        var getProp = horizontal?"getX":"getY";
-        var getPropComp = horizontal?"width":"height";
-        var prop = horizontal?"x":"y";
+        let getProp = horizontal?"getX":"getY";
+        let getPropComp = horizontal?"width":"height";
+        let prop = horizontal?"x":"y";
 
-        var setX = function(pDummy, pContext)
+        let setX = function(pDummy, pContext)
         {
             pContext.setPosition(Number(pDummy.value), pContext.getY());
         };
 
-        var setY = function(pDummy, pContext)
+        let setY = function(pDummy, pContext)
         {
             pContext.setPosition(pContext.getX(), Number(pDummy.value));
         };
 
-        var handler = horizontal?setX:setY;
+        let handler = horizontal?setX:setY;
 
-        var block;
-        var ignore = [null, null];
-        var range = {};
-        var elements = [];
+        let block;
+        let ignore = [null, null];
+        let range = {};
+        let elements = [];
         this.selectedElements().forEach(function(pElement){
             elements.push(pElement);
         });
 
-        var ref = this;
+        let ref = this;
         elements.sort(function(pA, pB)
         {
-            var t1 = ref.treeEditor.dispatchers[pA.getAttribute("id")][getProp]();
-            var t2 = ref.treeEditor.dispatchers[pB.getAttribute("id")][getProp]();
+            let t1 = ref.treeEditor.dispatchers[pA.getAttribute("id")][getProp]();
+            let t2 = ref.treeEditor.dispatchers[pB.getAttribute("id")][getProp]();
             if(t1<t2)
                 return -1;
             else if (t1>t2)
@@ -1748,7 +1747,8 @@ Class.define(DragSelector, [EventDispatcher], {
             return 0;
         });
 
-        for(var i = 0, max = elements.length; i<max;i++)
+        let max = elements.length;
+        for(let i = 0; i<max;i++)
         {
             block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
             if(!range.min)
@@ -1762,7 +1762,7 @@ Class.define(DragSelector, [EventDispatcher], {
             range.max = Math.max(range.max, block[getProp]() + block.getDimensions()[getPropComp]);
         }
 
-        for(i = 0;i<max;i++)
+        for(let i = 0;i<max;i++)
         {
             block = this.treeEditor.dispatchers[elements[i].getAttribute("id")];
 
@@ -1773,12 +1773,12 @@ Class.define(DragSelector, [EventDispatcher], {
                 ignore[1] = elements[i];
         }
 
-        var ignoreCount = 1;
+        let ignoreCount = 1;
         if(ignore[0] !== ignore[1])
         {
             ignoreCount = 2;
-            var blockMin = this.treeEditor.dispatchers[ignore[0].getAttribute("id")];
-            var blockMax = this.treeEditor.dispatchers[ignore[1].getAttribute("id")];
+            let blockMin = this.treeEditor.dispatchers[ignore[0].getAttribute("id")];
+            let blockMax = this.treeEditor.dispatchers[ignore[1].getAttribute("id")];
 
             if(blockMax[getProp]() >= (blockMin[getProp]() + blockMin.getDimensions()[getPropComp]))
             {
@@ -1788,7 +1788,7 @@ Class.define(DragSelector, [EventDispatcher], {
             }
         }
 
-        var totalMargin = 0;
+        let totalMargin = 0;
         for(i = 0;i<max;i++) {
             if(ignore.indexOf(elements[i]) !== -1)
                 continue;
@@ -1796,9 +1796,9 @@ Class.define(DragSelector, [EventDispatcher], {
             totalMargin += block.getDimensions()[getPropComp];
         }
 
-        var margin = ((range.max - range.min) - totalMargin) / ((max - ignoreCount)+1);
+        let margin = ((range.max - range.min) - totalMargin) / ((max - ignoreCount)+1);
 
-        var currentValue = range.min;
+        let currentValue = range.min;
         for(i = 0;i<max;i++) {
             if(ignore.indexOf(elements[i]) !== -1)
                 continue;
@@ -1817,30 +1817,30 @@ Class.define(DragSelector, [EventDispatcher], {
 
         e.preventDefault();
 
-        var alignment = e.currentTarget.getAttribute("data-param");
+        let alignment = e.currentTarget.getAttribute("data-param");
         if(!alignment)
             return;
 
-        var setX = function(pDummy, pContext)
+        let setX = function(pDummy, pContext)
         {
             pContext.setPosition(Number(pDummy.value), pContext.getY());
         };
 
-        var setY = function(pDummy, pContext)
+        let setY = function(pDummy, pContext)
         {
             pContext.setPosition(pContext.getX(), Number(pDummy.value));
         };
 
-        var horizontal = ["left","right","center"].indexOf(alignment)!==-1;
+        let horizontal = ["left","right","center"].indexOf(alignment)!==-1;
 
-        var handler = horizontal?setX:setY;
-        var getProp = horizontal?"getX":"getY";
-        var getPropComp = horizontal?"width":"height";
-        var propName = horizontal?"x":"y";
+        let handler = horizontal?setX:setY;
+        let getProp = horizontal?"getX":"getY";
+        let getPropComp = horizontal?"width":"height";
+        let propName = horizontal?"x":"y";
 
-        var elements = this.selectedElements();
+        let elements = this.selectedElements();
 
-        var i, max, block, value, newValue;
+        let i, max, block, value, newValue;
 
         switch(alignment)
         {
@@ -1906,7 +1906,7 @@ Class.define(DragSelector, [EventDispatcher], {
     },
     getSelectionProperties:function()
     {
-        var buttonsRows = [
+        let buttonsRows = [
             {"label":"Alignement", "buttons":[
                 {"title":"Aligner les élements à gauche", "icon":"format_align_left", "method":this.align.proxy(this), "param":"left"},
                 {"title":"Centrer les élements", "icon":"format_align_center", "method":this.align.proxy(this), "param":"center"},
@@ -1995,8 +1995,8 @@ Class.define(KeyboardHandler, [EventDispatcher], {
     },
     trigger:function(pKeys)
     {
-        var ref = this;
-        var t = ref.states;
+        let ref = this;
+        let t = ref.states;
         ref.states = {};
         pKeys.forEach(function(pValue){
             ref.states[pValue] = true;
@@ -2010,9 +2010,9 @@ Class.define(KeyboardHandler, [EventDispatcher], {
         {
             return;
         }
-        var shortcutInfo;
-        var trigger, k, maxk, key;
-        for(var i = 0, max = this.shortcuts.length; i<max; i++)
+        let shortcutInfo;
+        let trigger, k, maxk, key;
+        for(let i = 0, max = this.shortcuts.length; i<max; i++)
         {
             shortcutInfo = this.shortcuts[i];
             trigger = true;
@@ -2055,13 +2055,13 @@ function TreeEditor(pContainer, pDirection)
     this.direction = pDirection&&TreeEditor.DIRECTIONS[pDirection]?pDirection:TreeEditor.VERTI;
     this.direction = TreeEditor.DIRECTIONS[this.direction];
 
-    var propertiesEditor = this.container.querySelector(".properties_editor");
+    let propertiesEditor = this.container.querySelector(".properties_editor");
 
     //reset du mode
     this.toggleMode({currentTarget:propertiesEditor.querySelector('button[data-mode="'+TreeEditor.DESIGN_MODE+'"]'), preventDefault:function(){}});
 
     this.propertiesEditor = new PropertiesEditor(propertiesEditor, this);
-    var ref = this;
+    let ref = this;
     propertiesEditor.querySelectorAll(".actions button").forEach(function(pElement) {
         pElement.addEventListener("click", ref.toggleMode.proxy(ref), false);
     });
@@ -2074,56 +2074,78 @@ Class.define(TreeEditor, [EventDispatcher],
 {
     initTree:function()
     {
-        var ref = this;
+        let ref = this;
         this.svg.querySelectorAll('g[data-role="block"]').forEach(function(pElement){
             ref.dispatchers[pElement.getAttribute("id")] = new Block(pElement, ref);
             ref.last_block = pElement.getAttribute("id");
         });
 
-        var s = {};
-        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
-        {
-            var id = pElement.getAttribute("id");
-            var anchors_id = id.split("_");
-            var anchor1 = anchors_id[1];
-            var anchor2 = anchors_id[2];
-
-            var el1 = ref.svg.querySelector("#"+anchor1);
-            var el2 = ref.svg.querySelector("#"+anchor2);
-
-            var seg;
-
-            if(!el1.getAttribute("data-shared")||el1.getAttribute("data-shared") !== "true")
-            {
-                var block1 = el1.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                seg = {
-                    "blocks":[block1],
-                    "segments":[[anchor1, anchor2]]
-                };
+        let done = [];
+        let s = {};
+        this.svg.querySelectorAll('circle.anchor').forEach(function(pElement){
+            if(!pElement.getAttribute("data-draggable")||done.indexOf(pElement.getAttribute("id"))>-1){
+                return;
             }
-            else
-            {
-                //anchor1 shared
-                seg = s[anchor1];
-                seg.segments.push([anchor1, anchor2]);
-            }
-
-            if(!el2.getAttribute("data-shared")||el2.getAttribute("data-shared") !== "true")
-            {
-                var block2 = el2.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0];
-                seg.blocks.push(block2);
-                s[anchor1] = seg;
-            }
-            else
-            {
-                //anchor2 shared
-                s[anchor2] = seg;
-                delete s[anchor1];
-            }
+            let id = pElement.getAttribute("id");
+            console.log("getting lines of "+id);
+            let segments = [];
+            let points = [id];
+            done.push(id);
+            let anchor2;
+            document.querySelectorAll('line.segment[id*="_'+id+'_"]').forEach(function(pLine){
+                anchor2 = pLine.getAttribute("id").split("_")[2];
+                points.push(anchor2);
+                segments.push([id, anchor2]);
+                done.push(anchor2);
+                while(!ref.svg.querySelector("#"+anchor2).getAttribute("data-draggable")){
+                    let l = document.querySelector('line.segment[id*="_'+anchor2+'_"]');
+                    if(!l){
+                        console.log("no line "+anchor2);
+                        break;
+                    }
+                    let curid = l.getAttribute("id").split("_")[2];
+                    segments.push([anchor2, curid]);
+                    anchor2 = curid;
+                    done.push(anchor2);
+                    points.push(anchor2);
+                }
+            });
+            let blocks = [pElement.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0], ref.svg.querySelector("#"+anchor2).getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0]];
+            s[pElement.getAttribute("id")] = {"blocks":blocks, "segments":segments, "points":points};
         });
 
-        var link_obj, k, segment_arr, segments, maxk;
-        for(var i in s)
+        console.log(s);
+
+        this.svg.querySelectorAll("line.segment").forEach(function(pElement)
+        {
+            let id = pElement.getAttribute("id");
+            let anchors_id = id.split("_");
+            let anchor1 = anchors_id[1];
+            let anchor2 = anchors_id[2];
+
+            console.log(anchor1+" "+anchor2);
+
+            let el1 = ref.svg.querySelector("#"+anchor1);
+            let el2 = ref.svg.querySelector("#"+anchor2);
+
+            if(s[anchor1]){
+                s[anchor1].segments.push([anchor1, anchor2]);
+                s[anchor1].points.push(anchor2);
+            }
+            if(s[anchor2]){
+                s[anchor2].segments.push([anchor1, anchor2]);
+                s[anchor2].points.push(anchor1);
+            }
+
+            if(s[anchor1]&&s[anchor2]){
+                s[anchor1].blocks.push(s[anchor2].blocks[0]);
+                delete s[anchor2];
+            }
+        });
+        console.log(s);
+
+        let link_obj, k, segment_arr, segments, maxk;
+        for(let i in s)
         {
             if(!s.hasOwnProperty(i))
                 continue;
@@ -2164,7 +2186,7 @@ Class.define(TreeEditor, [EventDispatcher],
             pOnUpdate({value:pValue}, pDispatcher);
             return;
         }
-        var id = pDispatcher.element.getAttribute("id");
+        let id = pDispatcher.element.getAttribute("id");
         if(!this.tweens)
             this.tweens = {};
         if(!this.tweens[id])
@@ -2178,25 +2200,25 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     deleteBlocks:function()
     {
-        var ref = this;
+        let ref = this;
         this.selector.selectedElements().forEach(function(pElement){
             ref.dispatchers[pElement.getAttribute("id")].remove();
         });
     },
     getNextAnchorIndex:function()
     {
-        var selector = 'circle.anchor:last-of-type';
+        let selector = 'circle.anchor:last-of-type';
         if(!this.svg.querySelector(selector))
             return 1;
-        var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+        let id = this.svg.querySelector(selector).getAttribute("id").split("-");
         return Number(id[id.length-1]) + 1;
     },
     getNextBlockIndex:function()
     {
-        var selector = 'g[data-role="block"]:last-of-type';
+        let selector = 'g[data-role="block"]:last-of-type';
         if(!this.svg.querySelector(selector))
             return 1;
-        var id = this.svg.querySelector(selector).getAttribute("id").split("-");
+        let id = this.svg.querySelector(selector).getAttribute("id").split("-");
         return Number(id[id.length-1]) + 1;
     },
     fillStash:function()
@@ -2208,9 +2230,9 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     cloneStash:function()
     {
-        var newSelection = [];
-        var ref = this;
-        var block, newGroup, newBlock, newIndex;
+        let newSelection = [];
+        let ref = this;
+        let block, newGroup, newBlock, newIndex;
         TreeEditor.stash.forEach(function(pElement)
         {
             block = ref.dispatchers[pElement.getAttribute("id")];
@@ -2237,22 +2259,22 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     createBlock:function()
     {
-        var dimensions = {width:200, height:75};
-        var previous = this.dispatchers[this.last_block];
+        let dimensions = {width:200, height:75};
+        let previous = this.dispatchers[this.last_block];
 
-        var index = this.getNextBlockIndex();
-        var g = SVGElement.create("g", {
+        let index = this.getNextBlockIndex();
+        let g = SVGElement.create("g", {
             "transform":"translate("+(previous.getX()+(previous.getWidth()>>1) - (dimensions.width>>1))+","+(previous.getY()+previous.getHeight()+30)+")",
             "id":this.generateId(GROUP_BASE_ID+index),
             "data-role":"block",
             "data-type":"diagnostic"
         });
 
-        var rect = SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
+        SVGElement.create("rect", {"width":dimensions.width, "height":dimensions.height}, g);
 
-        var fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
+        let fo = SVGElement.create("foreignObject", {"width":dimensions.width-20, "height":dimensions.height-20, "x":10, "y":10}, g);
 
-        var cache = Element.create("div", {"class":"cache"}, fo);
+        let cache = Element.create("div", {"class":"cache"}, fo);
         Element.create("div", {"data-name":"description", "data-type":"html", "innerHTML":"Block "+index}, cache);
 
         this.svg.insertBefore(g, this.svg.querySelector("line.segment:first-of-type"));
@@ -2272,8 +2294,8 @@ Class.define(TreeEditor, [EventDispatcher],
     toggleMode:function(e)
     {
         e.preventDefault();
-        var t = e.currentTarget;
-        var ref = this;
+        let t = e.currentTarget;
+        let ref = this;
         this.container.querySelectorAll(".properties_editor>.actions button").forEach(function(pButton){
             if(pButton === t)
                 return;
@@ -2295,28 +2317,28 @@ Class.define(TreeEditor, [EventDispatcher],
     },
     getRelativePositionFromSVG:function(pX, pY)
     {
-        var t = this.svg.getBoundingClientRect();
+        let t = this.svg.getBoundingClientRect();
         return {x: (pX - t.left), y: (pY - t.top)};
     },
     save:function(pHandler){
-        var ref = this;
+        let ref = this;
         Request.load('css/TreeEditor.css').onComplete(function(pEvent){
-            var svg = ref.svg.cloneNode(true);
+            let svg = ref.svg.cloneNode(true);
             svg.classList.remove(TreeEditor.DESIGN_MODE);
             svg.classList.add(TreeEditor.CONTENT_MODE);
             svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){pElement.removeAttribute(DragSelector.ATTRIBUTE);});
             svg.querySelectorAll('.'+PropertiesEditor.CLASS).forEach(function(pElement){pElement.classList.remove(PropertiesEditor.CLASS);});
             SVGElement.create("style", {innerHTML:pEvent.responseText}, svg, svg.firstChild);
             SVGElement.create("style", {innerHTML:"@import url(https://fonts.googleapis.com/css?family=Roboto);"}, svg, svg.firstChild);
-            var cv = document.createElement("canvas");
-            var ctx = cv.getContext("2d");
+            let cv = document.createElement("canvas");
+            let ctx = cv.getContext("2d");
 
-            var b = ref.svg.getBoundingClientRect();
+            let b = ref.svg.getBoundingClientRect();
 
             cv.setAttribute("width", b.width+"px");
             cv.setAttribute("height", b.height+"px");
 
-            var img = new Image();
+            let img = new Image();
             img.onload = function(){
                 img.onload = null;
                 ctx.drawImage(img, 0, 0);
@@ -2350,12 +2372,12 @@ TreeEditor.DIRECTIONS[TreeEditor.VERTI] = {"restraints":["50%,bottom", "50%,top"
 TreeEditor.UTILS = {
     getTranslateXValue:function(pElement)
     {
-        var v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
+        let v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
         return Number(v[v.length-2].replace(" ", "").replace(")", ""))||0;
     },
     getTranslateYValue:function(pElement)
     {
-        var v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
+        let v = document.defaultView.getComputedStyle(pElement, null).transform.split(",");
         return Number(v[v.length-1].replace(" ", "").replace(")", ""))||0;
     }
 };

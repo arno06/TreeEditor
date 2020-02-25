@@ -17,27 +17,32 @@
         <style>
             *{font-family: "Roboto", sans-serif;outline:none;}
             html, body{height:100%;width:100%;margin:0; padding:0;}
+            body{overflow:hidden;}
         </style>
     </head>
     <body>
-    <h1>TreeEditor</h1>
-    <center><img id="test"><button onclick="t.save(function(pPng){document.querySelector('#test').src = pPng;});">Enregistrer</button></center>
     <div class="builder_container">
-        <svg width="100%" height="100%" class="design_mode">
-            <defs>
-                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
-                    <path d="M0,0 L0,6 L9,3 z" fill="#000"></path>
-                </marker>
-            </defs>
-            <g id="group-1" transform="translate(10,18)" data-role="block" data-type="diagnostic" class="draggable">
-                <rect width="528" height="40"></rect>
-                <foreignObject x="10" y="10" width="508" height="20">
-                    <div class="cache">
-                        <div data-name="description" data-type="html"><div class="wysiwyg-text-align-center"><b>Acne bouboup</b></div></div>
-                    </div>
-                </foreignObject>
-                <path d="M10,0 L10,10 L0,10 Z" transform="translate(513, 25)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,40)"></g><g data-role="grades" transform="translate(510,40)"></g></g><g transform="translate(30,88)" id="group-2" data-role="block" data-type="diagnostic" class="draggable"><rect width="200" height="75"></rect><foreignObject width="180" height="55" x="10" y="10"><div class="cache"><div data-name="description" data-type="html">Block 2</div></div></foreignObject><path d="M10,0 L10,10 L0,10 Z" transform="translate(185, 60)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,75)"></g><g data-role="grades" transform="translate(182,75)"></g></g><g transform="translate(10,193)" id="group-3" data-role="block" data-type="diagnostic" class="draggable"><rect width="528" height="40"></rect><foreignObject width="508" height="20" x="10" y="10"><div class="cache"><div data-name="description" data-type="html">Block 3</div></div></foreignObject><path d="M10,0 L10,10 L0,10 Z" transform="translate(513, 25)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,40)"></g><g data-role="grades" transform="translate(510,40)"></g></g><line id="segment_anchor-1_anchor-2" class="segment" marker-end="url(#arrow)" x1="274" y1="58" x2="130" y2="88"></line><line id="segment_anchor-3_anchor-4" class="segment" marker-end="url(#arrow)" x1="130" y1="163" x2="274" y2="193"></line><circle r="10" id="anchor-1" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-1,50%,bottom" transform="translate(274,58)"></circle><circle r="10" id="anchor-2" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-2,50%,top" transform="translate(130,88)"></circle><circle r="10" id="anchor-3" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-2,50%,bottom" transform="translate(130,163)"></circle><circle r="10" id="anchor-4" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-3,50%,top" transform="translate(274,193)"></circle></svg>
+        <div class="svg" id="tree">
+            <svg width="100%" height="100%" class="design_mode">
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#000"></path>
+                    </marker>
+                </defs>
+                <g id="group-1" transform="translate(423,85)" data-role="block" data-type="diagnostic" class="draggable">
+                    <rect width="528" height="40"></rect>
+                    <foreignObject x="10" y="10" width="508" height="20">
+                        <div class="cache">
+                            <div data-name="description" data-type="html"><div class="wysiwyg-text-align-center"><b>Acne bouboup</b></div></div>
+                        </div>
+                    </foreignObject>
+                    <path d="M10,0 L10,10 L0,10 Z" transform="translate(513, 25)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,40)"></g><g data-role="grades" transform="translate(510,40)"></g></g><g transform="translate(587,206)" id="group-2" data-role="block" data-type="diagnostic" class="draggable"><rect width="200" height="75"></rect><foreignObject width="180" height="55" x="10" y="10"><div class="cache"><div data-name="description" data-type="html">Block 2</div></div></foreignObject><path d="M10,0 L10,10 L0,10 Z" transform="translate(185, 60)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,75)"></g><g data-role="grades" transform="translate(182,75)"></g></g><g transform="translate(423,449)" id="group-3" data-role="block" data-type="diagnostic" class="draggable"><rect width="528" height="40"></rect><foreignObject width="508" height="20" x="10" y="10"><div class="cache"><div data-name="description" data-type="html">Block 3</div></div></foreignObject><path d="M10,0 L10,10 L0,10 Z" transform="translate(513, 25)" fill="#000" data-role="resize"></path><g data-role="notes" transform="translate(0,40)"></g><g data-role="grades" transform="translate(510,40)"></g></g><line id="segment_anchor-1_anchor-2" class="segment" marker-end="url(#arrow)" x1="687" y1="125" x2="687" y2="206"></line><line id="segment_tree-anchor-3_tree-anchor-4" class="segment" x1="587" y1="281" x2="587" y2="330"></line><line id="segment_tree-anchor-4_tree-anchor-6" class="segment" x1="587" y1="330" x2="951" y2="390"></line><line id="segment_tree-anchor-6_tree-anchor-8" class="segment" marker-end="url(#arrow)" x1="951" y1="390" x2="951" y2="449"></line><circle r="10" id="anchor-1" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-1,50%,bottom" transform="translate(687,125)"></circle><circle r="10" id="anchor-2" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-2,50%,top" transform="translate(687,206)"></circle><circle r="10" id="tree-anchor-3" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-2,0%,bottom" transform="translate(587,281)"></circle><circle r="10" id="tree-anchor-4" data-role="block" class="anchor draggable" transform="translate(587,330)" data-shared="true"></circle><circle r="10" id="tree-anchor-6" data-role="block" class="anchor draggable" transform="translate(951,390)" data-shared="true"></circle><circle r="10" id="tree-anchor-8" data-role="block" class="anchor draggable" data-draggable="restraintTo:group-3,100%,top" transform="translate(951,449)"></circle></svg></div>
+
         <div class="properties_editor">
+            <div class="global-actions">
+                <button id="file_selector" title="Charger un SVG"><span class="material-icons">cloud_upload</span><span class="label">Charger</span></button>
+                <button id="download" title="Download PNG file"><span class="material-icons">cloud_download</span><span class="label">Enregistrer</span></button></div>
+                <input type="file" id="file" accept="image/svg+xml" style="display:none">
             <div class="actions">
                 <button class="" data-mode="design_mode"><span class="material-icons">&#xE3AE;</span><span class="label">Mode design</span></button>
                 <button class="inactive" data-mode="content_mode"><span class="material-icons">&#xE254;</span><span class="label">Mode auteur</span></button>
@@ -52,6 +57,24 @@
         function init()
         {
             t = TreeEditor.create(".builder_container", TreeEditor.VERTI);
+            document.querySelector('#file').addEventListener('change', fileSelectedHandler, false);
+            document.querySelector('#download').addEventListener('click', downloadHandler, false);
+            document.querySelector('#file_selector').addEventListener('click', function(e){
+                document.querySelector('#file').click();
+            }, false);
+        }
+
+        function fileSelectedHandler(e){
+            let fileReader = new FileReader();
+            fileReader.onload = function(e){
+                document.querySelector('.builder_container .svg').innerHTML = e.target.result;
+                t = TreeEditor.create(".builder_container", TreeEditor.VERTI);
+            };
+            fileReader.readAsText(e.target.files[0]);
+        }
+
+        function downloadHandler(e){
+
         }
 
         window.addEventListener("DOMContentLoaded", init, false);

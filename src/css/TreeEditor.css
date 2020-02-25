@@ -1,10 +1,11 @@
-svg *{font-family: Arial, sans-serif;outline:none;}
-.builder_container{width:1000px;height:1000px;margin:0 auto;position:relative;}
 
-.builder_container svg{height:870px;position:relative;width:600px;}
+svg *{font-family: Arial, sans-serif;outline:none;}
+.builder_container{display:flex;height:100%;}
+
+.builder_container .svg{flex:1 1 auto;overflow:auto;}
 .builder_container svg *{user-select:none;}
 
-.builder_container .properties_editor{width:300px;height:100%;background:#f0f0f0;position:absolute;top:0;right:0;}
+.builder_container .properties_editor{width:300px;background:#f0f0f0;flex:0 0 auto;}
 
 svg text{pointer-events: none;}
 
@@ -50,11 +51,13 @@ svg rect.selector{fill:rgba(51, 153, 255, .35);stroke:rgba(51, 153, 255, 1);stro
 
 .properties_editor{box-shadow:0 0 3px rgba(0, 0, 0, .3);}
 
-.properties_editor .actions{text-align: center;}
+.properties_editor .actions, .properties_editor .global-actions{text-align: center;}
 
-.properties_editor .actions button, .properties_editor .properties .add_link_handler button{ display:inline-block;padding:7px 7px 7px 0;margin:5px auto 0;background:#217ebd;border:none;color:#fff;border-radius:3px;cursor:pointer;}
+.properties_editor .global-actions .material-icons{margin:0 4px;}
+
+.properties_editor .global-actions button, .properties_editor .actions button, .properties_editor .properties .add_link_handler button{ display:inline-block;padding:7px 7px 7px 0;margin:5px auto 0;background:#217ebd;border:none;color:#fff;border-radius:3px;cursor:pointer;}
 .properties_editor .actions button.delete{background: #e51926;margin-left:5px;}
-.properties_editor .actions span{vertical-align: middle;}
+.properties_editor .global-actions span, .properties_editor .actions span{vertical-align: middle;}
 .properties_editor .actions button:disabled, .properties_editor .properties .add_link_handler button:disabled{ background: #7faebd;color: #ececec;pointer-events: none;}
 .properties_editor .actions button.inactive{padding:6px 6px 6px 0;background: #74b3d2;color: #e0f3ff;}
 
