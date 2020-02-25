@@ -416,8 +416,8 @@ Class.define(Resizable, [Draggable], {
         };
 
         let diff = {
-            x: newPosition.x - this.relativePointer.x,
-            y: newPosition.y - this.relativePointer.y
+            x: (newPosition.x - this.relativePointer.x)/this.getWidth(),
+            y: (newPosition.y - this.relativePointer.y)/this.getHeight()
         };
 
         if(e.shiftKey)
@@ -426,6 +426,8 @@ Class.define(Resizable, [Draggable], {
             diff.x = max;
             diff.y = max;
         }
+        diff.x = this.getWidth() * diff.x;
+        diff.y = this.getHeight() * diff.y;
 
         let newDimensions = {
             width:this.startDimensions.width + diff.x,
