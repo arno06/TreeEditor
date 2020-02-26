@@ -803,9 +803,47 @@ function Anchor(pId, pPosition, pTreeEditor)
         let pos = pPosition.split(",");
         this.setPosition(pos[0], pos[1]);
     }
+    this.element.addEventListener("click", this.select.proxy(this), false);
 }
 
 Class.define(Anchor, [Draggable],  {
+    setProperty:function(pName, pValue){
+        switch(pName){
+            case "restraintTo":
+                switch(pValue){
+                    case "bottom":
+                    case "top":
+                        this.options.restraintTo = [this.options.restraintTo[0], "50%", pValue];
+                        break;
+                    case "left":
+                    case "right":
+                        this.options.restraintTo = [this.options.restraintTo[0], pValue, "50%"];
+                        break;
+                }
+                this._updateConstraint();
+                break;
+        }
+    },
+    getEditableProperties:function(){
+
+        let properties = {};
+
+        if(this.options.restraintTo){
+            let val = ["left", "right"].indexOf(this.options.restraintTo[1])>-1?this.options.restraintTo[1]:this.options.restraintTo[2];
+            properties.restraintTo = {
+                "label": "Coté",
+                    "mode": [TreeEditor.DESIGN_MODE],
+                    "type": "select",
+                    "data": {"left":"Gauche", "top":"Haut", "right":"Droite", "bottom":"Bas"},
+                    "value": val
+            };
+        }
+
+        return properties;
+    },
+    select:function(e){
+        this.treeEditor.propertiesEditor.edit(this);
+    },
     share:function()
     {
         this.element.setAttribute("data-shared", "true");
@@ -2057,8 +2095,7 @@ function TreeEditor(pContainer, pDirection)
     this.initTree();
     this.keyboardHandler = new KeyboardHandler();
     this.selector = new DragSelector(this);
-    this.direction = pDirection&&TreeEditor.DIRECTIONS[pDirection]?pDirection:TreeEditor.VERTI;
-    this.direction = TreeEditor.DIRECTIONS[this.direction];
+    this.direction = pDirection&&TreeEditor.DIRECTIONS[pDirection]?TreeEditor.DIRECTIONS[pDirection]:TreeEditor.DIRECTIONS[TreeEditor.VERTI];
 
     let propertiesEditor = this.container.querySelector(".properties_editor");
 
@@ -2111,6 +2148,9 @@ Class.define(TreeEditor, [EventDispatcher],
                     done.push(anchor2);
                 }
             });
+            if(!anchor2){
+                return;
+            }
             let blocks = [pElement.getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0], ref.svg.querySelector("#"+anchor2).getAttribute("data-draggable").split(";")[0].replace("restraintTo:", "").split(",")[0]];
             s[pElement.getAttribute("id")] = {"blocks":blocks, "segments":segments};
         });
@@ -2298,6 +2338,7 @@ Class.define(TreeEditor, [EventDispatcher],
         let ref = this;
         Request.load('css/TreeEditor.css').onComplete(function(pEvent){
             let svg = ref.svg.cloneNode(true);
+            let svgString = svg.outerHTML;
             svg.classList.remove(TreeEditor.DESIGN_MODE);
             svg.classList.add(TreeEditor.CONTENT_MODE);
             svg.querySelectorAll('*['+DragSelector.ATTRIBUTE+'="true"]').forEach(function(pElement){pElement.removeAttribute(DragSelector.ATTRIBUTE);});
@@ -2316,7 +2357,7 @@ Class.define(TreeEditor, [EventDispatcher],
             img.onload = function(){
                 img.onload = null;
                 ctx.drawImage(img, 0, 0);
-                pHandler(cv.toDataURL("image/png"));
+                pHandler(cv.toDataURL("image/png"), svgString);
             };
             img.setAttribute("src", "data:image/svg+xml;utf8," + new XMLSerializer().serializeToString(svg));
         });

@@ -41,7 +41,7 @@
         <div class="properties_editor">
             <div class="global-actions">
                 <button id="file_selector" title="Charger un SVG"><span class="material-icons">cloud_upload</span><span class="label">Charger</span></button>
-                <button id="download" title="Download PNG file"><span class="material-icons">cloud_download</span><span class="label">Enregistrer</span></button></div>
+                <button id="download" title="Télécharger le SVG"><span class="material-icons">cloud_download</span><span class="label">Enregistrer</span></button></div>
                 <input type="file" id="file" accept="image/svg+xml" style="display:none">
             <div class="actions">
                 <button class="" data-mode="design_mode"><span class="material-icons">&#xE3AE;</span><span class="label">Mode design</span></button>
@@ -74,7 +74,15 @@
         }
 
         function downloadHandler(e){
-
+            t.save((pPng, pSvg)=>{
+                let a = document.createElement('a');
+                a.setAttribute('href', 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(pSvg));
+                a.setAttribute('download', "Tree.svg");
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            });
         }
 
         window.addEventListener("DOMContentLoaded", init, false);
